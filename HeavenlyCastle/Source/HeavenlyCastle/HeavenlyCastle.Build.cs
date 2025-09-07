@@ -8,9 +8,21 @@ public class HeavenlyCastle : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+        PublicDependencyModuleNames.AddRange(new string[]
+        {
+            "Core",
+            "CoreUObject",
+            "Engine",
+            "InputCore",
+            "EnhancedInput",
+            // Public headers reference these modules
+            "UMG",            // UUserWidget, Widget types in public UI headers
+            "Niagara",        // UNiagaraSystem used in public headers
+            "AIModule",       // AAIController in public headers
+            "NavigationSystem" // UNavigationSystemV1 used in AI controller
+        });
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+        PrivateDependencyModuleNames.AddRange(new string[] {  });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
