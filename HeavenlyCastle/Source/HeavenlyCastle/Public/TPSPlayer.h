@@ -115,10 +115,6 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* ThrowAction;
 
-	/** Cover Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* CoverAction;
-
     /** Sprint Input Action */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* SprintAction;
@@ -151,8 +147,6 @@ protected:
     /** Called for throw input */
     void StartThrow();
 
-	/** Called for cover input */
-	void Cover();
 
 	/** Called for sprint input (start) */
 	void SprintStarted();
@@ -241,68 +235,6 @@ protected:
 
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UHealthComponent* HealthComponent;
-
-protected:
-	/************************************************************************
-	* Cover System
-	************************************************************************/
-
-	/** Tries to find cover and enter it */
-	void TryEnterCover();
-
-	/** Exits from the current cover */
-	void ExitCover();
-
-	/** True if player is in cover. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover")
-	bool bIsCovered;
-
-	/** The normal of the cover surface */
-	FVector CoverWallNormal;
-
-	/************************************************************************
-	* Enter Cover Animation
-	************************************************************************/
-	/** True if player is currently entering cover with animation. */
-	bool bIsEnteringCover;
-
-	/** Time when the enter cover animation started. */
-	float EnterCoverStartTime;
-
-	/** Duration of the enter cover animation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Cover")
-	float EnterCoverDuration;
-
-	/** Player's location when enter cover animation started. */
-	FVector EnterCoverStartLocation;
-
-	/** Target location for the player after entering cover animation. */
-	FVector EnterCoverTargetLocation;
-
-	/** Player's rotation when enter cover animation started. */
-	FRotator EnterCoverStartRotation;
-
-	/** Target rotation for the player after entering cover animation. */
-	FRotator EnterCoverTargetRotation;
-
-	/************************************************************************
-	* Exit Cover Animation
-	************************************************************************/
-	/** True if player is currently exiting cover with animation. */
-	bool bIsExitingCover;
-
-	/** Time when the exit cover animation started. */
-	float ExitCoverStartTime;
-
-	/** Duration of the exit cover animation. */
-	UPROPERTY(EditDefaultsOnly, Category = "Cover")
-	float ExitCoverDuration;
-
-	/** Player's location when exit cover animation started. */
-	FVector ExitCoverStartLocation;
-
-	/** Target location for the player after exiting cover animation. */
-	FVector ExitCoverTargetLocation;
 
 private:
     /** Timer handle for automatic firing */
