@@ -119,6 +119,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* SprintAction;
 
+    /** Cover toggle input action */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* CoverAction;
+
     /** Arm/Unarm Toggle Input Action (IA_Arm) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* ArmAction;
@@ -146,6 +150,9 @@ protected:
 
     /** Called for throw input */
     void StartThrow();
+
+    /** Called when cover input is triggered */
+    void HandleCoverAction();
 
 
 	/** Called for sprint input (start) */
@@ -258,6 +265,18 @@ private:
     /** Updates the character's rotation settings based on aiming and firing states */
     void UpdateRotationSettings();
 
+    /** Attempts to locate nearby cover; returns true on success */
+    bool FindCover(FVector& OutLocation, FVector& OutNormal, FVector& OutSurfacePoint) const;
+
+    /** Enter cover by snapping toward the provided surface */
+    void EnterCover(const FVector& CoverLocation, const FVector& CoverNormal, const FVector& SurfacePoint);
+
+    /** Leave the current cover state */
+    void ExitCover();
+
+    /** Keeps the character aligned with the cover surface each tick */
+    void MaintainCover(float DeltaTime);
+
     UFUNCTION()
     void OnHealthChanged(UHealthComponent* OwningHealthComp, float Health, float HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 
@@ -354,4 +373,60 @@ protected:
     /** When true, prints speed, max speed, sprint, input magnitude, camera length each tick */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Debug")
     bool bMovementDebugEnabled = false;
+
+    /************************************************************************
+    * Cover System
+    ************************************************************************/
+
+protected:
+    /** Distance to trace when searching for cover */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverTraceDistance = 325.f;
+
+    /** Vertical offset applied to the cover trace start point */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverTraceHeightOffset = 45.f;
+
+    /** Extra buffer to maintain from the wall while in cover */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverWallOffset = 10.f;
+
+    /** Speed used to interpolate the character back toward the cover plane */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverStickStrength = 10.f;
+
+    /** Speed used while rotating to face cover */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverRotationInterpSpeed = 10.f;
+
+    /** Threshold of forward input to exit cover intentionally */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverExitForwardThreshold = 0.6f;
+
+    /** Enables on-screen and line debug for cover traces */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cover|Debug")
+    bool bCoverDebugEnabled = false;
+
+    /** Duration to keep debug lines and messages on screen */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cover|Debug")
+    float CoverDebugDisplayTime = 1.5f;
+
+private:
+    /** True if the player is currently snapped to cover */
+    bool bIsInCover = false;
+
+    /** Cached normal of the surface we are using as cover */
+    FVector CurrentCoverNormal = FVector::ZeroVector;
+
+    /** Reference point on the cover surface */
+    FVector CurrentCoverPoint = FVector::ZeroVector;
+
+    /** Desired distance from the cover surface */
+    float CurrentCoverDistance = 0.f;
+
+    /** Desired facing rotation when in cover */
+    FRotator CurrentCoverRotation = FRotator::ZeroRotator;
+
+    /** Tangent direction used for sliding along the cover */
+    FVector CurrentCoverTangent = FVector::ZeroVector;
 };
