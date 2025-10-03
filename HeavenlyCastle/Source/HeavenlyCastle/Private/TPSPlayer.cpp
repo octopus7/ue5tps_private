@@ -286,12 +286,48 @@ void ATPSPlayer::Tick(float DeltaTime)
 		}
 	}
 
-    if (bIsInCover)
-    {
-        MaintainCover(DeltaTime);
-    }
+	if (UWorld* World = GetWorld())
+	{
+		const FVector ActorLocation = GetActorLocation();
+		const FVector Forward = GetActorForwardVector();
+		const FVector CoverTraceStart = ActorLocation + FVector(0.f, 0.f, CoverTraceHeightOffset);
+		const FVector CoverTraceEnd = CoverTraceStart + Forward * CoverTraceDistance;
 
-    // Removed SPD on-screen movement debug overlay
+		const FVector DebugStart = CoverTraceStart + Forward * 200.f;
+		const FVector DebugEnd = DebugStart + Forward * 50.f;
+		DrawDebugLine(World, DebugStart, DebugEnd, FColor::Green, false, 0.f, 0, 1.5f);
+
+		FHitResult Hit;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TPSPlayerCoverHeightDebug), false, this);
+		QueryParams.AddIgnoredActor(this);
+		if (World->LineTraceSingleByChannel(Hit, CoverTraceStart, CoverTraceEnd, ECC_Visibility, QueryParams))
+		{
+			DrawDebugSphere(World, Hit.ImpactPoint, 20.f, 16, FColor::Green, false, 0.f, 0, 1.f);
+		}
+
+		const float LowerDebugHeight = 15.f;
+		const FVector LowerTraceStart = ActorLocation + FVector(0.f, 0.f, LowerDebugHeight);
+		const FVector LowerTraceEnd = LowerTraceStart + Forward * CoverTraceDistance;
+
+		const FVector LowerDebugStart = LowerTraceStart + Forward * 200.f;
+		const FVector LowerDebugEnd = LowerDebugStart + Forward * 50.f;
+		DrawDebugLine(World, LowerDebugStart, LowerDebugEnd, FColor::Emerald, false, 0.f, 0, 1.5f);
+
+		FHitResult LowerHit;
+		FCollisionQueryParams LowerQueryParams(SCENE_QUERY_STAT(TPSPlayerCoverHeightDebugLow), false, this);
+		LowerQueryParams.AddIgnoredActor(this);
+		if (World->LineTraceSingleByChannel(LowerHit, LowerTraceStart, LowerTraceEnd, ECC_Visibility, LowerQueryParams))
+		{
+			DrawDebugSphere(World, LowerHit.ImpactPoint, 20.f, 16, FColor::Emerald, false, 0.f, 0, 1.f);
+		}
+	}
+
+	if (bIsInCover)
+	{
+		MaintainCover(DeltaTime);
+	}
+
+	// Removed SPD on-screen movement debug overlay
 }
 
 // Called to bind functionality to input
