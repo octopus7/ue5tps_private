@@ -5,6 +5,7 @@
 #include "Cover/Components/CoverLineComponent.h"
 #include "Cover/Runtime/CoverRegistrySubsystem.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
@@ -121,12 +122,21 @@ bool UCoverControllerComponent::TryEnterCover()
 {
     if (State != ESimpleCoverState::Free)
     {
+        if (GEngine)
+        {
+            const FString Message = FString::Printf(TEXT("CoverController: Reject enter. State=%d"), static_cast<int32>(State));
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, Message);
+        }
         return false;
     }
 
     AActor* OwnerActor = GetOwner();
     if (!OwnerActor)
     {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("CoverController: Reject enter. No owner actor."));
+        }
         return false;
     }
 
@@ -137,6 +147,10 @@ bool UCoverControllerComponent::TryEnterCover()
     UCoverLineComponent* OwnerComponent = nullptr;
     if (!QueryBestLine(ActorLocation, Forward, Line, OwnerComponent))
     {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Silver, TEXT("CoverController: Reject enter. No cover line."));
+        }
         return false;
     }
 
@@ -145,6 +159,12 @@ bool UCoverControllerComponent::TryEnterCover()
 
     SnapToLine(Line, OwnerComponent, InitialT);
     SnapElapsed = 0.f;
+
+    if (GEngine)
+    {
+        const FString Message = FString::Printf(TEXT("CoverController: Enter success. Type=%d"), static_cast<int32>(CurrentType));
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, Message);
+    }
 
     return true;
 }

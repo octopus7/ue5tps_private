@@ -549,18 +549,34 @@ void ATPSPlayer::HandleCoverAction()
 {
     if (!CoverController)
     {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Red, TEXT("CoverAction: Missing CoverController"));
+        }
         return;
     }
 
     if (IsInCover())
     {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Orange, TEXT("CoverAction: Exit cover requested"));
+        }
         CoverController->ExitCover();
         return;
     }
 
     if (CoverController->TryEnterCover())
     {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("CoverAction: Enter cover success"));
+        }
         CoverController->SetAiming(bIsAiming);
+    }
+    else if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Silver, TEXT("CoverAction: Enter cover failed"));
     }
 }
 
