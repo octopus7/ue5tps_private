@@ -1,7 +1,12 @@
 #include "Cover/Runtime/CoverRegistrySubsystem.h"
 
 #include "Cover/Components/CoverLineComponent.h"
+#include "Cover/Debug/CoverDebug.h"
 #include "Engine/World.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCoverRegistry, Log, All);
 
 void UCoverRegistrySubsystem::Register(UCoverLineComponent* LineComponent)
 {
@@ -11,6 +16,15 @@ void UCoverRegistrySubsystem::Register(UCoverLineComponent* LineComponent)
     }
 
     RegisteredLines.AddUnique(LineComponent);
+
+    UE_LOG(LogCoverRegistry, Log, TEXT("Register cover line: %s"), *GetNameSafe(LineComponent));
+
+    const int32 DebugMode = CVarCoverDebug.GetValueOnGameThread();
+    if (DebugMode >= 2 && GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green,
+            FString::Printf(TEXT("CoverRegistry: Register %s"), *GetNameSafe(LineComponent)));
+    }
 }
 
 void UCoverRegistrySubsystem::Unregister(UCoverLineComponent* LineComponent)
@@ -21,6 +35,15 @@ void UCoverRegistrySubsystem::Unregister(UCoverLineComponent* LineComponent)
     }
 
     RegisteredLines.Remove(LineComponent);
+
+    UE_LOG(LogCoverRegistry, Log, TEXT("Unregister cover line: %s"), *GetNameSafe(LineComponent));
+
+    const int32 DebugMode = CVarCoverDebug.GetValueOnGameThread();
+    if (DebugMode >= 2 && GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow,
+            FString::Printf(TEXT("CoverRegistry: Unregister %s"), *GetNameSafe(LineComponent)));
+    }
 }
 
 bool UCoverRegistrySubsystem::FindBestCoverLine(const FVector& From, const FVector& Forward, float MaxDist, float MaxAngleDeg,
@@ -85,4 +108,32 @@ bool UCoverRegistrySubsystem::FindBestCoverLine(const FVector& From, const FVect
     }
 
     return bFound;
+}
+
+void UCoverRegistrySubsystem::DrawDebug(UWorld* World, int32 DebugMode) const
+{
+    if (!World || DebugMode <= 0)
+    {
+        return;
+    }
+
+    for (const TWeakObjectPtr<UCoverLineComponent>& WeakLineComponent : RegisteredLines)
+    {
+        UCoverLineComponent* LineComponent = WeakLineComponent.Get();
+        if (!IsValid(LineComponent) || !LineComponent->IsRegistered())
+        {
+            continue;
+        }
+
+        const FCoverLine Line = LineComponent->ToCoverLine();
+        const FColor BaseColor = (Line.Type == ECoverType::High) ? FColor::Orange : FColor::Green;
+        LineComponent->DebugDraw(World, BaseColor);
+
+        if (DebugMode >= 2)
+        {
+            const FVector LabelLocation = (Line.Start + Line.End) * 0.5f + FVector(0.f, 0.f, Line.Height + 20.f);
+            const FString Label = FString::Printf(TEXT("%s\nL=%.0f"), *LineComponent->GetName(), (Line.End - Line.Start).Size());
+            DrawDebugString(World, LabelLocation, Label, nullptr, FColor::White, 0.f, true);
+        }
+    }
 }

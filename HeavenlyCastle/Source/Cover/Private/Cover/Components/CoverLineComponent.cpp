@@ -3,6 +3,7 @@
 #include "Cover/Runtime/CoverRegistrySubsystem.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "Math/RotationMatrix.h"
 
 UCoverLineComponent::UCoverLineComponent()
 {
@@ -25,8 +26,8 @@ FCoverLine UCoverLineComponent::ToCoverLine() const
 
     const FTransform WorldTransform = GetComponentTransform();
     const FVector WorldLocation = WorldTransform.GetLocation();
-    const FVector RightVector = WorldTransform.GetUnitAxis(EAxis::Y);
-    const FVector HalfOffset = RightVector * (Length * 0.5f);
+    const FVector Tangent = WorldTransform.GetUnitAxis(EAxis::X);
+    const FVector HalfOffset = Tangent * (Length * 0.5f);
 
     Line.Start = WorldLocation - HalfOffset;
     Line.End = WorldLocation + HalfOffset;
@@ -52,11 +53,12 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
     }
 
     const FCoverLine Line = ToCoverLine();
+    const FColor EffectiveColor = (Line.Type == ECoverType::High) ? FColor::Orange : LineColor;
     const FVector Center = (Line.Start + Line.End) * 0.5f;
     const FVector Tangent = (Line.End - Line.Start).GetSafeNormal();
     const FVector Normal = Line.Normal;
 
-    DrawDebugLine(World, Line.Start, Line.End, LineColor, false, 0.f, 0, 2.f);
+    DrawDebugLine(World, Line.Start, Line.End, EffectiveColor, false, 0.f, 0, 2.f);
 
     // Normal tick marks along the line.
     const int32 Steps = 6;
@@ -80,6 +82,38 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
             Line.Type == ECoverType::Low ? TEXT("Low") : TEXT("High"),
             Line.Height),
         nullptr, FColor::White, 0.f, true);
+
+    const FVector Segment = Line.End - Line.Start;
+    const float SegmentLength = Segment.Size();
+    if (SegmentLength > KINDA_SMALL_NUMBER)
+    {
+        FVector UpVector = FVector::UpVector;
+        if (FMath::Abs(FVector::DotProduct(UpVector, Segment.GetSafeNormal())) > 0.95f)
+        {
+            UpVector = FVector::RightVector;
+        }
+
+        const FVector XAxis = Segment.GetSafeNormal();
+        FVector YAxis = FVector::CrossProduct(UpVector, XAxis).GetSafeNormal();
+        FVector ZAxis = FVector::CrossProduct(XAxis, YAxis).GetSafeNormal();
+
+        if (!Line.Normal.IsNearlyZero() && FVector::DotProduct(YAxis, Line.Normal.GetSafeNormal()) < 0.f)
+        {
+            YAxis *= -1.f;
+            ZAxis *= -1.f;
+        }
+
+        const float HalfLength = SegmentLength * 0.5f;
+        const float HalfThickness = 15.f;
+        const float HalfHeight = FMath::Max(Line.Height * 0.5f, 10.f);
+        const FVector BoxExtents(HalfLength, HalfThickness, HalfHeight);
+        const FVector BoxCenter = Center + FVector(0.f, 0.f, HalfHeight);
+
+        const FMatrix RotationMatrix = FRotationMatrix::MakeFromXY(XAxis, YAxis);
+        const FQuat BoxRotation = RotationMatrix.ToQuat();
+
+        DrawDebugBox(World, BoxCenter, BoxExtents, BoxRotation, EffectiveColor, false, 0.f, 0, 1.5f);
+    }
 }
 
 void UCoverLineComponent::OnRegister()

@@ -64,6 +64,25 @@ void UCoverControllerComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+    const int32 DebugMode = CVarCoverDebug.GetValueOnGameThread();
+    if (DebugMode > 0)
+    {
+        if (UWorld* World = GetWorld())
+        {
+            UCoverRegistrySubsystem* Registry = RegistryCached.Get();
+            if (!Registry)
+            {
+                Registry = World->GetSubsystem<UCoverRegistrySubsystem>();
+                RegistryCached = Registry;
+            }
+
+            if (Registry)
+            {
+                Registry->DrawDebug(World, DebugMode);
+            }
+        }
+    }
+
     if (State == ESimpleCoverState::Free)
     {
         CurrentCameraXOffset = 0.f;
@@ -336,7 +355,7 @@ FTransform UCoverControllerComponent::ComputeDesiredTransform() const
     const FVector Tangent = LineVector.IsNearlyZero() ? FVector::RightVector : LineVector.GetSafeNormal();
     const FVector BasePoint = FMath::Lerp(CurrentLine.Start, CurrentLine.End, LineT);
 
-    FVector DesiredLocation = BasePoint - CurrentLine.Normal * WallMargin;
+    FVector DesiredLocation = BasePoint + CurrentLine.Normal * WallMargin;
 
     if (AActor* OwnerActor = GetOwner())
     {
@@ -356,7 +375,7 @@ FTransform UCoverControllerComponent::ComputeDesiredTransform() const
 
     DesiredLocation += AdditionalOffset;
 
-    const FVector FacingSource = -CurrentLine.Normal;
+    const FVector FacingSource = CurrentLine.Normal;
     const FVector Facing = FacingSource.IsNearlyZero() ? FVector::ForwardVector : FacingSource.GetSafeNormal();
     FRotator DesiredRotation = Facing.Rotation();
 

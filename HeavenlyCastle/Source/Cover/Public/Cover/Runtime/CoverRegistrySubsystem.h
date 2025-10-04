@@ -20,6 +20,8 @@ public:
     bool FindBestCoverLine(const FVector& From, const FVector& Forward, float MaxDist, float MaxAngleDeg,
         FCoverLine& OutLine, UCoverLineComponent*& OutOwner) const;
 
+    void DrawDebug(class UWorld* World, int32 DebugMode) const;
+
 private:
     UPROPERTY()
     TArray<TWeakObjectPtr<UCoverLineComponent>> RegisteredLines;

@@ -19,7 +19,7 @@ class COVER_API UCoverLineComponent : public USceneComponent
 public:
     UCoverLineComponent();
 
-    /** 커버 길이(cm). */
+    /** 커버 길이(cm). 로컬 X 축 방향으로 뻗습니다. */
     UPROPERTY(EditAnywhere, Category = "Cover")
     float Length;
 
