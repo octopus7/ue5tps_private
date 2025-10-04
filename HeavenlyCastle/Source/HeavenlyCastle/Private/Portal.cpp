@@ -118,7 +118,7 @@ void APortal::Tick(float DeltaSeconds)
                     FVector Dir = CamLoc - LabelLoc;
                     if (!Dir.IsNearlyZero())
                     {
-                        FRotator TargetRot;
+                        FRotator TargetRot = TextLabel->GetComponentRotation();
                         bool bHaveTarget = false;
                         if (bFaceCameraYawOnly)
                         {

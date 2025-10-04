@@ -54,8 +54,9 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
 
     const FCoverLine Line = ToCoverLine();
     const FColor EffectiveColor = (Line.Type == ECoverType::High) ? FColor::Orange : LineColor;
+    const FVector SegmentVector = Line.End - Line.Start;
     const FVector Center = (Line.Start + Line.End) * 0.5f;
-    const FVector Tangent = (Line.End - Line.Start).GetSafeNormal();
+    const FVector Tangent = SegmentVector.GetSafeNormal();
     const FVector Normal = Line.Normal;
 
     DrawDebugLine(World, Line.Start, Line.End, EffectiveColor, false, 0.f, 0, 2.f);
@@ -71,16 +72,56 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
 
     // End caps showing open/closed state.
     const float CapSize = 18.f;
-    const FVector LeftCapDir = Line.bLeftOpen ? Tangent : -Tangent;
-    const FVector RightCapDir = Line.bRightOpen ? -Tangent : Tangent;
+    FVector SegmentDir = SegmentVector;
+    if (!SegmentDir.Normalize())
+    {
+        SegmentDir = FVector::RightVector;
+    }
 
-    DrawDebugLine(World, Line.Start, Line.Start + LeftCapDir * CapSize, Line.bLeftOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
-    DrawDebugLine(World, Line.End, Line.End + RightCapDir * CapSize, Line.bRightOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
+    FVector Forward = Line.Normal;
+    if (!Forward.Normalize())
+    {
+        Forward = FVector::ForwardVector;
+    }
 
-    const FVector LeftLabelLocation = Line.Start + FVector(0.f, 0.f, 35.f);
-    const FVector RightLabelLocation = Line.End + FVector(0.f, 0.f, 35.f);
-    DrawDebugString(World, LeftLabelLocation, Line.bLeftOpen ? TEXT("Left=") : TEXT("Left=#"), nullptr, Line.bLeftOpen ? FColor::Green : FColor::Red, 0.f, true);
-    DrawDebugString(World, RightLabelLocation, Line.bRightOpen ? TEXT("Right=") : TEXT("Right=#"), nullptr, Line.bRightOpen ? FColor::Green : FColor::Red, 0.f, true);
+    FVector Up = FVector::UpVector;
+    if (FMath::Abs(FVector::DotProduct(Forward, Up)) > 0.99f)
+    {
+        Up = FVector::RightVector;
+    }
+
+    FVector Right = FVector::CrossProduct(Forward, Up).GetSafeNormal();
+    if (Right.IsNearlyZero())
+    {
+        Right = FVector::CrossProduct(SegmentDir, Up).GetSafeNormal();
+    }
+
+    if (Right.IsNearlyZero())
+    {
+        Right = FVector::RightVector;
+    }
+
+    const FVector LeftDir = -Right;
+    const bool bLeftIsEnd = FVector::DotProduct(SegmentDir, LeftDir) > 0.f;
+
+    const FVector LeftPoint = bLeftIsEnd ? Line.End : Line.Start;
+    const FVector RightPoint = bLeftIsEnd ? Line.Start : Line.End;
+    const bool bLeftOpenVisual = bLeftIsEnd ? Line.bRightOpen : Line.bLeftOpen;
+    const bool bRightOpenVisual = bLeftIsEnd ? Line.bLeftOpen : Line.bRightOpen;
+
+    const FVector LeftAlongSegment = bLeftIsEnd ? -SegmentDir : SegmentDir;
+    const FVector RightAlongSegment = -LeftAlongSegment;
+
+    const FVector LeftCapDir = bLeftOpenVisual ? LeftAlongSegment : -LeftAlongSegment;
+    const FVector RightCapDir = bRightOpenVisual ? RightAlongSegment : -RightAlongSegment;
+
+    DrawDebugLine(World, LeftPoint, LeftPoint + LeftCapDir * CapSize, bLeftOpenVisual ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
+    DrawDebugLine(World, RightPoint, RightPoint + RightCapDir * CapSize, bRightOpenVisual ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
+
+    const FVector LeftLabelLocation = LeftPoint + FVector(0.f, 0.f, 35.f);
+    const FVector RightLabelLocation = RightPoint + FVector(0.f, 0.f, 35.f);
+    DrawDebugString(World, LeftLabelLocation, bLeftOpenVisual ? TEXT("Left=") : TEXT("Left=#"), nullptr, bLeftOpenVisual ? FColor::Green : FColor::Red, 0.f, true);
+    DrawDebugString(World, RightLabelLocation, bRightOpenVisual ? TEXT("Right=") : TEXT("Right=#"), nullptr, bRightOpenVisual ? FColor::Green : FColor::Red, 0.f, true);
 
     DrawDebugString(World, Center + FVector(0.f, 0.f, 30.f),
         FString::Printf(TEXT("%s Cover\nH=%.0f"),
@@ -88,17 +129,16 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
             Line.Height),
         nullptr, FColor::White, 0.f, true);
 
-    const FVector Segment = Line.End - Line.Start;
-    const float SegmentLength = Segment.Size();
+    const float SegmentLength = SegmentVector.Size();
     if (SegmentLength > KINDA_SMALL_NUMBER)
     {
         FVector UpVector = FVector::UpVector;
-        if (FMath::Abs(FVector::DotProduct(UpVector, Segment.GetSafeNormal())) > 0.95f)
+        if (FMath::Abs(FVector::DotProduct(UpVector, SegmentVector.GetSafeNormal())) > 0.95f)
         {
             UpVector = FVector::RightVector;
         }
 
-        const FVector XAxis = Segment.GetSafeNormal();
+        const FVector XAxis = SegmentVector.GetSafeNormal();
         FVector YAxis = FVector::CrossProduct(UpVector, XAxis).GetSafeNormal();
         FVector ZAxis = FVector::CrossProduct(XAxis, YAxis).GetSafeNormal();
 
