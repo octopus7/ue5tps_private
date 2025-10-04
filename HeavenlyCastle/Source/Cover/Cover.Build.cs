@@ -1,0 +1,22 @@
+using UnrealBuildTool;
+
+public class Cover : ModuleRules
+{
+    public Cover(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        PublicDependencyModuleNames.AddRange(new string[]
+        {
+            "Core",
+            "CoreUObject",
+            "Engine"
+        });
+
+        PrivateDependencyModuleNames.AddRange(new string[]
+        {
+            "InputCore",
+            "EnhancedInput"
+        });
+    }
+}

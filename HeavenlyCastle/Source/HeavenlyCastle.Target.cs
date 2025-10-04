@@ -10,6 +10,10 @@ public class HeavenlyCastleTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_5;
-		ExtraModuleNames.Add("HeavenlyCastle");
+		ExtraModuleNames.AddRange(new string[]
+		{
+			"HeavenlyCastle",
+			"Cover"
+		});
 	}
 }
