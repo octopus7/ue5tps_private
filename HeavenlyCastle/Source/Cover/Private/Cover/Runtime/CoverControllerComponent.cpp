@@ -334,6 +334,12 @@ void UCoverControllerComponent::SnapToLine(const FCoverLine& Line, UCoverLineCom
 
 void UCoverControllerComponent::UpdateInCover(float DeltaSeconds)
 {
+    if (State == ESimpleCoverState::Exit)
+    {
+        CachedSlideInput = 0.f;
+        return;
+    }
+
     if (!CurrentLineOwner)
     {
         return;
@@ -358,7 +364,7 @@ void UCoverControllerComponent::UpdateInCover(float DeltaSeconds)
 
 void UCoverControllerComponent::UpdatePeeks()
 {
-    if (State == ESimpleCoverState::SnapIn)
+    if (State == ESimpleCoverState::SnapIn || State == ESimpleCoverState::Exit)
     {
         return;
     }
