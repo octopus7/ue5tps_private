@@ -92,8 +92,6 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Cover|State")
     float LineT;
-
-    float GetRawLineT() const;
     bool IsCoverSideFlipped() const;
 
     UPROPERTY(BlueprintReadOnly, Category = "Cover|State")
@@ -120,12 +118,10 @@ private:
     void ChangeState(ESimpleCoverState NewState);
     void ClearCoverLine();
     void UpdateCameraOffsets();
-    void SyncLineTFromRaw();
 
     FRotator EnterCoverRotation;
     float SlideDirectionSign;
     bool bFlipCoverSides;
-    float RawLineT;
     float CachedSlideInput;
     float SnapElapsed;
     mutable TWeakObjectPtr<UCoverRegistrySubsystem> RegistryCached;
