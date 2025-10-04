@@ -104,6 +104,9 @@ public:
 
     FTransform ComputeDesiredTransform() const;
 
+    FVector GetCurrentTangent() const;
+    FVector GetCurrentNormal() const;
+
 protected:
     bool QueryBestLine(const FVector& From, const FVector& Fwd, FCoverLine& OutLine, UCoverLineComponent*& OutOwner) const;
     void SnapToLine(const FCoverLine& Line, UCoverLineComponent* OwnerComp, float InitialT);

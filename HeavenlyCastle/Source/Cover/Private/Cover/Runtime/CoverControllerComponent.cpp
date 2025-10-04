@@ -395,6 +395,27 @@ FTransform UCoverControllerComponent::ComputeDesiredTransform() const
     return FTransform(DesiredRotation, DesiredLocation);
 }
 
+FVector UCoverControllerComponent::GetCurrentTangent() const
+{
+    const FVector LineVector = CurrentLine.End - CurrentLine.Start;
+    if (LineVector.IsNearlyZero())
+    {
+        return FVector::ZeroVector;
+    }
+
+    return LineVector.GetSafeNormal();
+}
+
+FVector UCoverControllerComponent::GetCurrentNormal() const
+{
+    if (CurrentLine.Normal.IsNearlyZero())
+    {
+        return FVector::ZeroVector;
+    }
+
+    return CurrentLine.Normal.GetSafeNormal();
+}
+
 void UCoverControllerComponent::ChangeState(ESimpleCoverState NewState)
 {
     if (State == NewState)

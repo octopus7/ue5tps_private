@@ -413,6 +413,12 @@ void ATPSPlayer::Move(const FInputActionValue& Value)
         return;
     }
 
+    const FRotator ControlRotation = Controller->GetControlRotation();
+    const FRotator YawRotation(0.f, ControlRotation.Yaw, 0.f);
+    const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+    const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+    const FVector WorldInput = ForwardDirection * MovementVector.Y + RightDirection * MovementVector.X;
+
     if (CoverController && IsInCover())
     {
         const float ForwardAxis = MovementVector.Y;
@@ -422,19 +428,37 @@ void ATPSPlayer::Move(const FInputActionValue& Value)
             return;
         }
 
-        CoverController->AddSlideInput(MovementVector.X);
+        const FVector Tangent = CoverController->GetCurrentTangent();
+        const FVector Normal = CoverController->GetCurrentNormal();
+        float SlideAxis = 0.f;
+        if (!Tangent.IsNearlyZero())
+        {
+            const float InputMagnitude = FMath::Min(WorldInput.Size(), 1.f);
+            const FVector NormalizedInput = WorldInput.GetSafeNormal();
+
+            FVector SlideDirection = Tangent;
+            if (Normal.IsNearlyZero())
+            {
+                SlideAxis = FVector::DotProduct(NormalizedInput, SlideDirection) * InputMagnitude;
+            }
+            else
+            {
+                const FVector NormalizedNormal = Normal.GetSafeNormal();
+                const FVector ProjectedInput = NormalizedInput - FVector::DotProduct(NormalizedInput, NormalizedNormal) * NormalizedNormal;
+
+                const FVector InputRight = FVector::CrossProduct(NormalizedNormal, ProjectedInput).GetSafeNormal();
+                if (!InputRight.IsNearlyZero() && FVector::DotProduct(InputRight, Tangent) < 0.f)
+                {
+                    SlideDirection *= -1.f;
+                }
+
+                SlideAxis = (FVector::DotProduct(ProjectedInput.GetSafeNormal(), SlideDirection) * InputMagnitude);
+            }
+        }
+
+        CoverController->AddSlideInput(SlideAxis);
         return;
     }
-
-    // find out which way is forward
-    const FRotator Rotation = Controller->GetControlRotation();
-    const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-    // get forward vector
-    const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-    // get right vector
-    const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
     // add movement
     AddMovementInput(ForwardDirection, MovementVector.Y);

@@ -77,6 +77,11 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
     DrawDebugLine(World, Line.Start, Line.Start + LeftCapDir * CapSize, Line.bLeftOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
     DrawDebugLine(World, Line.End, Line.End + RightCapDir * CapSize, Line.bRightOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
 
+    const FVector LeftLabelLocation = Line.Start + FVector(0.f, 0.f, 35.f);
+    const FVector RightLabelLocation = Line.End + FVector(0.f, 0.f, 35.f);
+    DrawDebugString(World, LeftLabelLocation, Line.bLeftOpen ? TEXT("Left=") : TEXT("Left=#"), nullptr, Line.bLeftOpen ? FColor::Green : FColor::Red, 0.f, true);
+    DrawDebugString(World, RightLabelLocation, Line.bRightOpen ? TEXT("Right=") : TEXT("Right=#"), nullptr, Line.bRightOpen ? FColor::Green : FColor::Red, 0.f, true);
+
     DrawDebugString(World, Center + FVector(0.f, 0.f, 30.f),
         FString::Printf(TEXT("%s Cover\nH=%.0f"),
             Line.Type == ECoverType::Low ? TEXT("Low") : TEXT("High"),
