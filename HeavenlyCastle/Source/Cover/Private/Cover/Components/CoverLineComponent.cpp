@@ -106,22 +106,22 @@ void UCoverLineComponent::DebugDraw(UWorld* World, const FColor& LineColor) cons
 
     const FVector LeftPoint = bLeftIsEnd ? Line.End : Line.Start;
     const FVector RightPoint = bLeftIsEnd ? Line.Start : Line.End;
-    const bool bLeftOpenVisual = bLeftIsEnd ? Line.bRightOpen : Line.bLeftOpen;
-    const bool bRightOpenVisual = bLeftIsEnd ? Line.bLeftOpen : Line.bRightOpen;
+    const bool bVisualLeftOpen = bLeftIsEnd ? Line.bRightOpen : Line.bLeftOpen;
+    const bool bVisualRightOpen = bLeftIsEnd ? Line.bLeftOpen : Line.bRightOpen;
 
     const FVector LeftAlongSegment = bLeftIsEnd ? -SegmentDir : SegmentDir;
     const FVector RightAlongSegment = -LeftAlongSegment;
 
-    const FVector LeftCapDir = bLeftOpenVisual ? LeftAlongSegment : -LeftAlongSegment;
-    const FVector RightCapDir = bRightOpenVisual ? RightAlongSegment : -RightAlongSegment;
+    const FVector LeftCapDir = bVisualLeftOpen ? LeftAlongSegment : -LeftAlongSegment;
+    const FVector RightCapDir = bVisualRightOpen ? RightAlongSegment : -RightAlongSegment;
 
-    DrawDebugLine(World, LeftPoint, LeftPoint + LeftCapDir * CapSize, bLeftOpenVisual ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
-    DrawDebugLine(World, RightPoint, RightPoint + RightCapDir * CapSize, bRightOpenVisual ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
+    DrawDebugLine(World, LeftPoint, LeftPoint + LeftCapDir * CapSize, bVisualLeftOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
+    DrawDebugLine(World, RightPoint, RightPoint + RightCapDir * CapSize, bVisualRightOpen ? FColor::Green : FColor::Red, false, 0.f, 0, 2.f);
 
     const FVector LeftLabelLocation = LeftPoint + FVector(0.f, 0.f, 35.f);
     const FVector RightLabelLocation = RightPoint + FVector(0.f, 0.f, 35.f);
-    DrawDebugString(World, LeftLabelLocation, bLeftOpenVisual ? TEXT("Left=") : TEXT("Left=#"), nullptr, bLeftOpenVisual ? FColor::Green : FColor::Red, 0.f, true);
-    DrawDebugString(World, RightLabelLocation, bRightOpenVisual ? TEXT("Right=") : TEXT("Right=#"), nullptr, bRightOpenVisual ? FColor::Green : FColor::Red, 0.f, true);
+    DrawDebugString(World, LeftLabelLocation, bVisualLeftOpen ? TEXT("Left=") : TEXT("Left=#"), nullptr, bVisualLeftOpen ? FColor::Green : FColor::Red, 0.f, true);
+    DrawDebugString(World, RightLabelLocation, bVisualRightOpen ? TEXT("Right=") : TEXT("Right=#"), nullptr, bVisualRightOpen ? FColor::Green : FColor::Red, 0.f, true);
 
     DrawDebugString(World, Center + FVector(0.f, 0.f, 30.f),
         FString::Printf(TEXT("%s Cover\nH=%.0f"),
