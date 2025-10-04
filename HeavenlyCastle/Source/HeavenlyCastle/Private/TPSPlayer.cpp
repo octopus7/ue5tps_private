@@ -18,6 +18,8 @@
 #include "UI/UISessionSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 #include "ThrowableGrenade.h"
+#include "Cover/Runtime/CoverControllerComponent.h"
+#include "Cover/Runtime/CoverCameraComponent.h"
 
 // Sets default values
 ATPSPlayer::ATPSPlayer()
@@ -91,6 +93,8 @@ ATPSPlayer::ATPSPlayer()
 	ProjectileSpawnPoint->SetupAttachment(GetMesh()); // Attach to mesh, can be adjusted to a specific socket later
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	CoverController = CreateDefaultSubobject<UCoverControllerComponent>(TEXT("CoverController"));
+	CoverCamera = CreateDefaultSubobject<UCoverCameraComponent>(TEXT("CoverCamera"));
 
 	// Combat state defaults
 	CombatState = ECombatState::Armed;
@@ -155,6 +159,17 @@ void ATPSPlayer::BeginPlay()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Socket '%s' does not exist on the player mesh."), *WeaponSocketName.ToString());
 		}
+	}
+
+	if (CoverController)
+	{
+		CoverController->OnStateChanged.AddDynamic(this, &ATPSPlayer::OnCoverStateChanged);
+		CoverController->SetAiming(bIsAiming);
+	}
+
+	if (CoverCamera)
+	{
+		CoverCamera->OnCameraOffset.AddDynamic(this, &ATPSPlayer::OnCoverCameraOffsetUpdated);
 	}
 
 	if (HealthComponent)
@@ -237,6 +252,8 @@ void ATPSPlayer::Tick(float DeltaTime)
 		TargetSocketOffset = DefaultCameraSocketOffset;
 	}
 
+	TargetSocketOffset += CoverCameraOffset;
+
 	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, TargetArmLength, DeltaTime, CameraInterpSpeed);
 	CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, TargetSocketOffset, DeltaTime, CameraInterpSpeed);
 
@@ -286,46 +303,6 @@ void ATPSPlayer::Tick(float DeltaTime)
 		}
 	}
 
-	if (UWorld* World = GetWorld())
-	{
-		const FVector ActorLocation = GetActorLocation();
-		const FVector Forward = GetActorForwardVector();
-		const FVector CoverTraceStart = ActorLocation + FVector(0.f, 0.f, CoverTraceHeightOffset);
-		const FVector CoverTraceEnd = CoverTraceStart + Forward * CoverTraceDistance;
-
-		const FVector DebugStart = CoverTraceStart + Forward * 200.f;
-		const FVector DebugEnd = DebugStart + Forward * 50.f;
-		DrawDebugLine(World, DebugStart, DebugEnd, FColor::Green, false, 0.f, 0, 1.5f);
-
-		FHitResult Hit;
-		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TPSPlayerCoverHeightDebug), false, this);
-		QueryParams.AddIgnoredActor(this);
-		if (World->LineTraceSingleByChannel(Hit, CoverTraceStart, CoverTraceEnd, ECC_Visibility, QueryParams))
-		{
-			DrawDebugSphere(World, Hit.ImpactPoint, 20.f, 16, FColor::Green, false, 0.f, 0, 1.f);
-		}
-
-		const float LowerDebugHeight = 15.f;
-		const FVector LowerTraceStart = ActorLocation + FVector(0.f, 0.f, LowerDebugHeight);
-		const FVector LowerTraceEnd = LowerTraceStart + Forward * CoverTraceDistance;
-
-		const FVector LowerDebugStart = LowerTraceStart + Forward * 200.f;
-		const FVector LowerDebugEnd = LowerDebugStart + Forward * 50.f;
-		DrawDebugLine(World, LowerDebugStart, LowerDebugEnd, FColor::Emerald, false, 0.f, 0, 1.5f);
-
-		FHitResult LowerHit;
-		FCollisionQueryParams LowerQueryParams(SCENE_QUERY_STAT(TPSPlayerCoverHeightDebugLow), false, this);
-		LowerQueryParams.AddIgnoredActor(this);
-		if (World->LineTraceSingleByChannel(LowerHit, LowerTraceStart, LowerTraceEnd, ECC_Visibility, LowerQueryParams))
-		{
-			DrawDebugSphere(World, LowerHit.ImpactPoint, 20.f, 16, FColor::Emerald, false, 0.f, 0, 1.f);
-		}
-	}
-
-	if (bIsInCover)
-	{
-		MaintainCover(DeltaTime);
-	}
 
 	// Removed SPD on-screen movement debug overlay
 }
@@ -339,7 +316,7 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		//Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATPSPlayer::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
 		//Moving
@@ -385,6 +362,16 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	}
 }
 
+void ATPSPlayer::Jump()
+{
+    if (CoverController && IsInCover())
+    {
+        CoverController->ExitCover();
+    }
+
+    Super::Jump();
+}
+
 void ATPSPlayer::ToggleMovementDebug()
 {
     bMovementDebugEnabled = !bMovementDebugEnabled;
@@ -418,50 +405,42 @@ void ATPSPlayer::ConfigureWeaponCollision()
 
 void ATPSPlayer::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
+    // input is a Vector2D
+    FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
-	{
-		if (bIsInCover)
-		{
-			const float ForwardAxis = MovementVector.Y;
-			// Pull back from the wall to leave cover
-			if (ForwardAxis < -CoverExitForwardThreshold)
-			{
-				ExitCover();
-			}
-			else
-			{
-				FVector CoverTangent = CurrentCoverTangent;
-				if (CoverTangent.IsNearlyZero())
-				{
-					CoverTangent = FVector::CrossProduct(FVector::UpVector, CurrentCoverNormal).GetSafeNormal();
-				}
-				const float StrafeAxis = MovementVector.X;
-				if (!CoverTangent.IsNearlyZero() && !FMath::IsNearlyZero(StrafeAxis))
-				{
-					AddMovementInput(CoverTangent, StrafeAxis);
-				}
-				return;
-			}
-		}
+    if (!Controller)
+    {
+        return;
+    }
 
-		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
+    if (CoverController && IsInCover())
+    {
+        const float ForwardAxis = MovementVector.Y;
+        if (ForwardAxis < -CoverExitForwardThreshold)
+        {
+            CoverController->ExitCover();
+            return;
+        }
 
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+        CoverController->AddSlideInput(MovementVector.X);
+        return;
+    }
 
-		// get right vector
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+    // find out which way is forward
+    const FRotator Rotation = Controller->GetControlRotation();
+    const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		// add movement
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
-	}
+    // get forward vector
+    const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+    // get right vector
+    const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+    // add movement
+    AddMovementInput(ForwardDirection, MovementVector.Y);
+    AddMovementInput(RightDirection, MovementVector.X);
 }
+
 
 void ATPSPlayer::Look(const FInputActionValue& Value)
 {
@@ -479,12 +458,20 @@ void ATPSPlayer::Look(const FInputActionValue& Value)
 void ATPSPlayer::AimStarted()
 {
 	bIsAiming = true;
+	if (CoverController)
+	{
+		CoverController->SetAiming(true);
+	}
 	UpdateRotationSettings();
 }
 
 void ATPSPlayer::AimStopped()
 {
 	bIsAiming = false;
+	if (CoverController)
+	{
+		CoverController->SetAiming(false);
+	}
 	UpdateRotationSettings();
 }
 
@@ -560,233 +547,48 @@ void ATPSPlayer::StartThrow()
 
 void ATPSPlayer::HandleCoverAction()
 {
-    if (bIsInCover)
+    if (!CoverController)
     {
-        ExitCover();
         return;
     }
 
-    FVector CoverLocation;
-    FVector CoverNormal;
-    FVector SurfacePoint;
-    if (FindCover(CoverLocation, CoverNormal, SurfacePoint))
+    if (IsInCover())
     {
-        EnterCover(CoverLocation, CoverNormal, SurfacePoint);
+        CoverController->ExitCover();
+        return;
     }
-    else
+
+    if (CoverController->TryEnterCover())
     {
-        UE_LOG(LogTemp, Verbose, TEXT("HandleCoverAction(): No valid cover found"));
-        if (GEngine && bCoverDebugEnabled)
-        {
-            GEngine->AddOnScreenDebugMessage(-1, CoverDebugDisplayTime, FColor::Silver, TEXT("Cover failed: no nearby surface."));
-        }
+        CoverController->SetAiming(bIsAiming);
     }
 }
 
-bool ATPSPlayer::FindCover(FVector& OutLocation, FVector& OutNormal, FVector& OutSurfacePoint) const
+bool ATPSPlayer::IsInCover() const
 {
-    UWorld* World = GetWorld();
-    if (!World)
+    if (!CoverController)
     {
         return false;
     }
 
-    const FVector ActorLocation = GetActorLocation();
-    const float CapsuleRadius = GetCapsuleComponent()->GetScaledCapsuleRadius();
-    const float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-
-    const FVector TraceOrigin = ActorLocation + FVector(0.f, 0.f, CoverTraceHeightOffset);
-    const FVector Forward = GetActorForwardVector();
-    const FVector Right = GetActorRightVector();
-
-    const FVector Directions[] = {
-        Forward,
-        (Forward + Right).GetSafeNormal(),
-        (Forward - Right).GetSafeNormal()
-    };
-
-    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TPSPlayerCover), false, this);
-    QueryParams.bTraceComplex = false;
-
-    for (int32 DirIndex = 0; DirIndex < UE_ARRAY_COUNT(Directions); ++DirIndex)
+    switch (CoverController->State)
     {
-        const FVector& Dir = Directions[DirIndex];
-        if (Dir.IsNearlyZero())
-        {
-            continue;
-        }
-
-        const FVector End = TraceOrigin + Dir * CoverTraceDistance;
-
-        FHitResult Hit;
-        const bool bHitSomething = World->LineTraceSingleByChannel(Hit, TraceOrigin, End, ECC_Visibility, QueryParams);
-
-        if (bCoverDebugEnabled)
-        {
-            const bool bValidHit = bHitSomething && Hit.bBlockingHit;
-            const FColor LineColor = bValidHit ? FColor::Yellow : FColor::Red;
-            DrawDebugLine(World, TraceOrigin, End, LineColor, false, CoverDebugDisplayTime, 0, 1.5f);
-
-            if (GEngine)
-            {
-                const FString HitActorName = (bHitSomething && Hit.GetActor()) ? Hit.GetActor()->GetName() : TEXT("None");
-                const float ReportedDistance = bHitSomething ? Hit.Distance : CoverTraceDistance;
-                const FString Message = FString::Printf(TEXT("CoverTrace[%d]: %s (Actor=%s, Dist=%.0f)"), DirIndex, bValidHit ? TEXT("Hit") : TEXT("Miss"), *HitActorName, ReportedDistance);
-                const uint64 MessageKey = ((uint64)((PTRINT)this) & 0xFFFF) + 2000 + DirIndex;
-                GEngine->AddOnScreenDebugMessage(MessageKey, CoverDebugDisplayTime, LineColor, Message);
-            }
-        }
-
-        if (!bHitSomething)
-        {
-            continue;
-        }
-
-        if (!Hit.bBlockingHit)
-        {
-            continue;
-        }
-
-        const FVector SurfaceNormal = Hit.ImpactNormal.GetSafeNormal();
-        // Reject floors/ceilings; we only want mostly vertical surfaces
-        if (FMath::Abs(SurfaceNormal.Z) > 0.4f)
-        {
-            continue;
-        }
-
-        const FVector SurfacePoint = Hit.ImpactPoint;
-        FVector DesiredLocation = SurfacePoint + SurfaceNormal * (CapsuleRadius + CoverWallOffset);
-        DesiredLocation.Z = ActorLocation.Z;
-
-        FCollisionShape Capsule = FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight);
-        FCollisionQueryParams OverlapParams(SCENE_QUERY_STAT(TPSPlayerCoverOverlap), false, this);
-
-        if (World->OverlapBlockingTestByChannel(DesiredLocation, FQuat::Identity, ECC_Pawn, Capsule, OverlapParams))
-        {
-            continue;
-        }
-
-        OutLocation = DesiredLocation;
-        OutNormal = SurfaceNormal;
-        OutSurfacePoint = SurfacePoint;
-
-        if (bCoverDebugEnabled)
-        {
-            DrawDebugSphere(World, DesiredLocation, 12.f, 16, FColor::Green, false, CoverDebugDisplayTime);
-            DrawDebugDirectionalArrow(World, SurfacePoint, SurfacePoint + SurfaceNormal * 60.f, 10.f, FColor::Blue, false, CoverDebugDisplayTime, 0, 1.5f);
-            if (GEngine)
-            {
-                const uint64 MessageKey = ((uint64)((PTRINT)this) & 0xFFFF) + 2100;
-                const FString Message = FString::Printf(TEXT("CoverTrace Success: Align dist=%.1f"), (DesiredLocation - SurfacePoint).Size());
-                GEngine->AddOnScreenDebugMessage(MessageKey, CoverDebugDisplayTime, FColor::Green, Message);
-            }
-        }
-
+    case ESimpleCoverState::Free:
+    case ESimpleCoverState::Exit:
+        return false;
+    default:
         return true;
     }
-
-    return false;
 }
 
-void ATPSPlayer::EnterCover(const FVector& CoverLocation, const FVector& CoverNormal, const FVector& SurfacePoint)
+void ATPSPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 {
-    bIsInCover = true;
-    CurrentCoverNormal = CoverNormal.GetSafeNormal();
-    CurrentCoverPoint = SurfacePoint;
-    CurrentCoverDistance = FVector::DotProduct(CoverLocation - CurrentCoverPoint, CurrentCoverNormal);
-    if (CurrentCoverDistance <= KINDA_SMALL_NUMBER)
-    {
-        const float CapsuleRadius = GetCapsuleComponent()->GetScaledCapsuleRadius();
-        CurrentCoverDistance = CapsuleRadius + CoverWallOffset;
-        CurrentCoverPoint = CoverLocation - CurrentCoverNormal * CurrentCoverDistance;
-    }
-
-    FVector CoverTangent = FVector::CrossProduct(FVector::UpVector, CurrentCoverNormal).GetSafeNormal();
-    if (CoverTangent.IsNearlyZero())
-    {
-        CoverTangent = GetActorForwardVector().GetSafeNormal();
-    }
-    else
-    {
-        const FVector ActorForward = GetActorForwardVector();
-        if (FVector::DotProduct(ActorForward, CoverTangent) < 0.f)
-        {
-            CoverTangent *= -1.f;
-        }
-    }
-    CurrentCoverTangent = CoverTangent;
-    CurrentCoverRotation = FRotationMatrix::MakeFromX(CurrentCoverTangent).Rotator();
-
-    GetCharacterMovement()->StopMovementImmediately();
-    SprintStopped();
-
-    SetActorLocation(CoverLocation, false, nullptr, ETeleportType::TeleportPhysics);
-    SetActorRotation(CurrentCoverRotation);
-
     UpdateRotationSettings();
-
-    if (GEngine && bCoverDebugEnabled)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, CoverDebugDisplayTime, FColor::Green, TEXT("Cover engaged"));
-    }
 }
 
-void ATPSPlayer::ExitCover()
+void ATPSPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
 {
-    if (!bIsInCover)
-    {
-        return;
-    }
-
-    bIsInCover = false;
-    CurrentCoverNormal = FVector::ZeroVector;
-    CurrentCoverPoint = FVector::ZeroVector;
-    CurrentCoverDistance = 0.f;
-    CurrentCoverRotation = FRotator::ZeroRotator;
-    CurrentCoverTangent = FVector::ZeroVector;
-
-    UpdateRotationSettings();
-
-    if (GEngine && bCoverDebugEnabled)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, CoverDebugDisplayTime, FColor::Silver, TEXT("Cover exited"));
-    }
-}
-
-void ATPSPlayer::MaintainCover(float DeltaTime)
-{
-    if (!bIsInCover || CurrentCoverNormal.IsNearlyZero())
-    {
-        return;
-    }
-
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-    if (!MoveComp)
-    {
-        return;
-    }
-
-    if (MoveComp->IsFalling())
-    {
-        ExitCover();
-        return;
-    }
-
-    const FVector CurrentLocation = GetActorLocation();
-    const FVector ToSurface = CurrentLocation - CurrentCoverPoint;
-    const float DistanceAlongNormal = FVector::DotProduct(ToSurface, CurrentCoverNormal);
-    const float CorrectionAmount = CurrentCoverDistance - DistanceAlongNormal;
-
-    if (!FMath::IsNearlyZero(CorrectionAmount, 1.f))
-    {
-        const FVector TargetLocation = CurrentLocation + CurrentCoverNormal * CorrectionAmount;
-        const FVector NewLocation = FMath::VInterpTo(CurrentLocation, TargetLocation, DeltaTime, CoverStickStrength);
-        SetActorLocation(NewLocation, true);
-    }
-
-    const FRotator DesiredRotation = CurrentCoverRotation;
-    const FRotator NewRotation = FMath::RInterpTo(GetActorRotation(), DesiredRotation, DeltaTime, CoverRotationInterpSpeed);
-    SetActorRotation(NewRotation);
+    CoverCameraOffset = Offset;
 }
 
 void ATPSPlayer::UpdateRotationSettings()
@@ -795,7 +597,7 @@ void ATPSPlayer::UpdateRotationSettings()
 	bool bShouldUseControllerRotationYaw = false;
 
 	// If we are aiming OR firing, we want to face the camera direction.
-	if (bIsInCover)
+	if (IsInCover())
 	{
 		bShouldOrientToMovement = false;
 		bShouldUseControllerRotationYaw = false;
@@ -838,6 +640,13 @@ void ATPSPlayer::Fire()
 			}
 
 
+			const FVector AimDirection = SpawnRotation.Vector();
+			if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, SpawnLocation + AimDirection * 1200.f))
+			{
+				UE_LOG(LogTemp, Verbose, TEXT("Fire blocked: cover occlusion"));
+				return;
+			}
+
 			// Spawn the projectile
 			AActor* SpawnedProjectile = World->SpawnActor<AActor>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
 			if (SpawnedProjectile)
@@ -869,6 +678,11 @@ void ATPSPlayer::SprintStarted()
 {
 	bIsSprinting = true;
 	GetCharacterMovement()->MaxWalkSpeed = SprintWalkSpeed;
+
+	if (CoverController && IsInCover())
+	{
+		CoverController->ExitCover();
+	}
 }
 
 void ATPSPlayer::SprintStopped()

@@ -19,7 +19,8 @@ public class HeavenlyCastle : ModuleRules
             "UMG",            // UUserWidget, Widget types in public UI headers
             "Niagara",        // UNiagaraSystem used in public headers
             "AIModule",       // AAIController in public headers
-            "NavigationSystem" // UNavigationSystemV1 used in AI controller
+            "NavigationSystem", // UNavigationSystemV1 used in AI controller
+            "Cover"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });
