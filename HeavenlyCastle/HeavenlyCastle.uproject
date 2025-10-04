@@ -19,6 +19,14 @@
 			"AdditionalDependencies": [
 				"Engine"
 			]
+		},
+		{
+			"Name": "CoverEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"AdditionalDependencies": [
+				"UnrealEd"
+			]
 		}
 	],
 	"Plugins": [

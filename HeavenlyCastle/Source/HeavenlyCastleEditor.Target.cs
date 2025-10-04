@@ -13,7 +13,8 @@ public class HeavenlyCastleEditorTarget : TargetRules
 		ExtraModuleNames.AddRange(new string[]
 		{
 			"HeavenlyCastle",
-			"Cover"
+			"Cover",
+			"CoverEditor"
 		});
 	}
 }
