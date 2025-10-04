@@ -42,11 +42,14 @@ void FCoverDebug::Draw(const UCoverControllerComponent& Controller)
         const float DistanceLeft = LineLength * Controller.LineT;
         const float DistanceRight = LineLength - DistanceLeft;
 
-        const FVector PointOnLine = FMath::Lerp(Line.Start, Line.End, Controller.LineT);
+        const float RawLineT = Controller.GetRawLineT();
+        const bool bFlipped = Controller.IsCoverSideFlipped();
+
+        const FVector PointOnLine = FMath::Lerp(Line.Start, Line.End, RawLineT);
         DrawDebugSphere(World, PointOnLine, 6.f, 8, FColor::Yellow, false, -1.f);
 
-        const FVector LeftEnd = Line.Start;
-        const FVector RightEnd = Line.End;
+        const FVector LeftEnd = bFlipped ? Line.End : Line.Start;
+        const FVector RightEnd = bFlipped ? Line.Start : Line.End;
 
         DrawDebugBox(World, LeftEnd, FVector(2.f, 2.f, 40.f), FQuat::Identity, FColor::Magenta, false, -1.f, 0, 1.f);
         DrawDebugBox(World, RightEnd, FVector(2.f, 2.f, 40.f), FQuat::Identity, FColor::Magenta, false, -1.f, 0, 1.f);

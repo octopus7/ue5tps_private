@@ -35,11 +35,15 @@ UCoverControllerComponent::UCoverControllerComponent()
     CurrentType = ECoverType::Low;
     State = ESimpleCoverState::Free;
     CurrentLineOwner = nullptr;
+    RawLineT = 0.5f;
     LineT = 0.5f;
     bIsAiming = false;
     CurrentCameraXOffset = 0.f;
     CurrentCameraZOffset = 0.f;
 
+    EnterCoverRotation = FRotator::ZeroRotator;
+    SlideDirectionSign = 1.f;
+    bFlipCoverSides = false;
     CachedSlideInput = 0.f;
     SnapElapsed = 0.f;
 }
@@ -215,7 +219,7 @@ void UCoverControllerComponent::SetAiming(bool bAiming)
 
 void UCoverControllerComponent::AddSlideInput(float AxisX)
 {
-    CachedSlideInput = AxisX;
+    CachedSlideInput = AxisX * SlideDirectionSign;
 }
 
 bool UCoverControllerComponent::IsMuzzleClear(const FVector& Muzzle, const FVector& AimPoint) const
@@ -277,7 +281,55 @@ void UCoverControllerComponent::SnapToLine(const FCoverLine& Line, UCoverLineCom
     CurrentLine = Line;
     CurrentLineOwner = OwnerComp;
     CurrentType = Line.Type;
-    LineT = FMath::Clamp(InitialT, 0.f, 1.f);
+    RawLineT = FMath::Clamp(InitialT, 0.f, 1.f);
+
+    SlideDirectionSign = 1.f;
+    bFlipCoverSides = false;
+
+    if (AActor* OwnerActor = GetOwner())
+    {
+        EnterCoverRotation = OwnerActor->GetActorRotation();
+        EnterCoverRotation.Pitch = 0.f;
+        EnterCoverRotation.Roll = 0.f;
+    }
+    else
+    {
+        EnterCoverRotation = Line.Normal.Rotation();
+    }
+
+    const FVector LineVector = Line.End - Line.Start;
+    if (!LineVector.IsNearlyZero())
+    {
+        const FVector Tangent = LineVector.GetSafeNormal();
+        FVector EntryRight = EnterCoverRotation.RotateVector(FVector::RightVector);
+        if (!EntryRight.IsNearlyZero())
+        {
+            EntryRight = EntryRight.GetSafeNormal();
+            const float Dot = FVector::DotProduct(EntryRight, Tangent);
+            if (FMath::Abs(Dot) > KINDA_SMALL_NUMBER)
+            {
+                SlideDirectionSign = FMath::Sign(Dot);
+            }
+        }
+    }
+
+    const FVector LineNormal = Line.Normal.GetSafeNormal();
+    if (!LineNormal.IsNearlyZero())
+    {
+        FVector EntryForward = EnterCoverRotation.RotateVector(FVector::ForwardVector);
+        if (!EntryForward.IsNearlyZero())
+        {
+            EntryForward = EntryForward.GetSafeNormal();
+            bFlipCoverSides = FVector::DotProduct(EntryForward, LineNormal) < 0.f;
+        }
+    }
+
+    if (bFlipCoverSides)
+    {
+        SlideDirectionSign *= -1.f;
+    }
+
+    SyncLineTFromRaw();
 
     ChangeState(ESimpleCoverState::SnapIn);
     SnapElapsed = 0.f;
@@ -301,7 +353,8 @@ void UCoverControllerComponent::UpdateInCover(float DeltaSeconds)
     if (!FMath::IsNearlyZero(Direction))
     {
         const float DeltaT = (Direction * SlideSpeed * DeltaSeconds) / LineLength;
-        LineT = FMath::Clamp(LineT + DeltaT, 0.f, 1.f);
+        RawLineT = FMath::Clamp(RawLineT + DeltaT, 0.f, 1.f);
+        SyncLineTFromRaw();
     }
 
     CachedSlideInput = 0.f;
@@ -318,8 +371,24 @@ void UCoverControllerComponent::UpdatePeeks()
 
     const FVector LineVector = CurrentLine.End - CurrentLine.Start;
     const float LineLength = LineVector.Size();
-    const float DistanceLeft = LineLength * LineT;
-    const float DistanceRight = LineLength * (1.f - LineT);
+    const float DistanceLeft = LineLength * RawLineT;
+    const float DistanceRight = LineLength * (1.f - RawLineT);
+
+    float DistanceToLeftEdge = DistanceLeft;
+    float DistanceToRightEdge = DistanceRight;
+    bool bLeftOpen = CurrentLine.bLeftOpen;
+    bool bRightOpen = CurrentLine.bRightOpen;
+
+    if (bFlipCoverSides)
+    {
+        const float TempDistance = DistanceToLeftEdge;
+        DistanceToLeftEdge = DistanceToRightEdge;
+        DistanceToRightEdge = TempDistance;
+
+        const bool TempOpen = bLeftOpen;
+        bLeftOpen = bRightOpen;
+        bRightOpen = TempOpen;
+    }
 
     if (bIsAiming)
     {
@@ -329,10 +398,10 @@ void UCoverControllerComponent::UpdatePeeks()
         }
         else if (CurrentType == ECoverType::High)
         {
-            const bool bAllowLeft = CurrentLine.bLeftOpen && DistanceLeft <= EndPeekWindow;
-            const bool bAllowRight = CurrentLine.bRightOpen && DistanceRight <= EndPeekWindow;
+            const bool bAllowLeft = bLeftOpen && DistanceToLeftEdge <= EndPeekWindow;
+            const bool bAllowRight = bRightOpen && DistanceToRightEdge <= EndPeekWindow;
 
-            if (bAllowLeft && (!bAllowRight || DistanceLeft <= DistanceRight))
+            if (bAllowLeft && (!bAllowRight || DistanceToLeftEdge <= DistanceToRightEdge))
             {
                 TargetState = ESimpleCoverState::PeekSideLeft;
             }
@@ -353,7 +422,7 @@ FTransform UCoverControllerComponent::ComputeDesiredTransform() const
 {
     const FVector LineVector = CurrentLine.End - CurrentLine.Start;
     const FVector Tangent = LineVector.IsNearlyZero() ? FVector::RightVector : LineVector.GetSafeNormal();
-    const FVector BasePoint = FMath::Lerp(CurrentLine.Start, CurrentLine.End, LineT);
+    const FVector BasePoint = FMath::Lerp(CurrentLine.Start, CurrentLine.End, RawLineT);
 
     FVector DesiredLocation = BasePoint + CurrentLine.Normal * WallMargin;
 
@@ -375,9 +444,8 @@ FTransform UCoverControllerComponent::ComputeDesiredTransform() const
 
     DesiredLocation += AdditionalOffset;
 
-    const FVector FacingSource = CurrentLine.Normal;
-    const FVector Facing = FacingSource.IsNearlyZero() ? FVector::ForwardVector : FacingSource.GetSafeNormal();
-    FRotator DesiredRotation = Facing.Rotation();
+    FRotator DesiredRotation = EnterCoverRotation;
+    DesiredRotation.Normalize();
 
     if (State == ESimpleCoverState::PeekSideLeft)
     {
@@ -416,6 +484,21 @@ FVector UCoverControllerComponent::GetCurrentNormal() const
     return CurrentLine.Normal.GetSafeNormal();
 }
 
+float UCoverControllerComponent::GetRawLineT() const
+{
+    return RawLineT;
+}
+
+bool UCoverControllerComponent::IsCoverSideFlipped() const
+{
+    return bFlipCoverSides;
+}
+
+void UCoverControllerComponent::SyncLineTFromRaw()
+{
+    LineT = bFlipCoverSides ? (1.f - RawLineT) : RawLineT;
+}
+
 void UCoverControllerComponent::ChangeState(ESimpleCoverState NewState)
 {
     if (State == NewState)
@@ -440,8 +523,12 @@ void UCoverControllerComponent::ClearCoverLine()
 {
     CurrentLineOwner = nullptr;
     CurrentLine = FCoverLine();
-    LineT = 0.5f;
+    RawLineT = 0.5f;
     CurrentType = ECoverType::Low;
+    SlideDirectionSign = 1.f;
+    EnterCoverRotation = FRotator::ZeroRotator;
+    bFlipCoverSides = false;
+    SyncLineTFromRaw();
 }
 
 void UCoverControllerComponent::UpdateCameraOffsets()
