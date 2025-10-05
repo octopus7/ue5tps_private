@@ -145,7 +145,7 @@ void ATPSPlayer::BeginPlay()
 				FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, /*bWeldSimulatedBodies*/ false);
 				SpawnedWeapon->AttachToComponent(GetMesh(), AttachmentRules, WeaponSocketName);
 				// Ensure attached weapon doesn't block or overlap the character/world
-				ConfigureWeaponCollision();
+				//ConfigureWeaponCollision();
 			}
 		}
 	}
