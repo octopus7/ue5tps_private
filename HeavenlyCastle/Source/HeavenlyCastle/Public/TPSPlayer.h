@@ -269,6 +269,9 @@ private:
 	/** Flag to track if the dedicated aim button is pressed */
 	bool bIsAiming;
 
+    /** Flag to track if the player is currently firing */
+    bool bIsFiring;
+
     /** Flag to track if the player is sprinting */
     bool bIsSprinting;
 

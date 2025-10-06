@@ -38,6 +38,9 @@ ATPSPlayer::ATPSPlayer()
 	// Initialize aiming flag
 	bIsAiming = false;
 
+	// Initialize firing flag
+	bIsFiring = false;
+
 	// Initialize sprinting flag
 	bIsSprinting = false;
 
@@ -519,6 +522,8 @@ void ATPSPlayer::StartFire()
 	{
 		return;
 	}
+
+	bIsFiring = true;
 	UpdateRotationSettings();
 	Fire(); // Fire immediately on press
 	GetWorldTimerManager().SetTimer(TimerHandle_AutomaticFire, this, &ATPSPlayer::Fire, TimeBetweenShots, true);
@@ -527,6 +532,7 @@ void ATPSPlayer::StartFire()
 void ATPSPlayer::StopFire()
 {
 	GetWorldTimerManager().ClearTimer(TimerHandle_AutomaticFire);
+	bIsFiring = false;
 	UpdateRotationSettings();
 }
 
@@ -644,7 +650,7 @@ void ATPSPlayer::UpdateRotationSettings()
 		bShouldOrientToMovement = false;
 		bShouldUseControllerRotationYaw = false;
 	}
-	else if (bIsAiming || GetWorldTimerManager().IsTimerActive(TimerHandle_AutomaticFire))
+	else if (bIsAiming || bIsFiring || GetWorldTimerManager().IsTimerActive(TimerHandle_AutomaticFire))
 	{
 		bShouldOrientToMovement = false;
 		bShouldUseControllerRotationYaw = true;
