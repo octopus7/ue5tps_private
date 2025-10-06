@@ -528,6 +528,19 @@ void ATPSPlayer::StartFire()
 		return;
 	}
 
+	if (IsInCover() && CoverController)
+	{
+		switch (CoverController->State)
+		{
+		case ESimpleCoverState::PeekSideLeft:
+		case ESimpleCoverState::PeekSideRight:
+		case ESimpleCoverState::PeekOver:
+			break;
+		default:
+			return; // Prevent blind fire while staying in solid cover
+		}
+	}
+
 	bIsFiring = true;
 	UpdateRotationSettings();
 	Fire(); // Fire immediately on press
