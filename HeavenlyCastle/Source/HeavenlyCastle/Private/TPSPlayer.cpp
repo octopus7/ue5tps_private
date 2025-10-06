@@ -686,6 +686,8 @@ void ATPSPlayer::Fire()
 			const FVector AimDirection = CameraAimDirection.IsNearlyZero() ? MuzzleRotation.Vector() : CameraAimDirection;
 			const FRotator SpawnRotation = AimDirection.Rotation();
 
+			DrawDebugLine(World, SpawnLocation, AimPoint, FColor::Cyan, false, 1.0f, 0, 1.5f);
+
 			if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, AimPoint))
 			{
 				UE_LOG(LogTemp, Verbose, TEXT("Fire blocked: cover occlusion"));
