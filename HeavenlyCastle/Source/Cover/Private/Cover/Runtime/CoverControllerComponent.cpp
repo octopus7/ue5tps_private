@@ -45,6 +45,7 @@ UCoverControllerComponent::UCoverControllerComponent()
     bFlipCoverSides = false;
     CachedSlideInput = 0.f;
     SnapElapsed = 0.f;
+    bPreferRightPeek = false;
 }
 
 void UCoverControllerComponent::BeginPlay()
@@ -207,6 +208,7 @@ void UCoverControllerComponent::SetAiming(bool bAiming)
 
     if (!bIsAiming)
     {
+        bPreferRightPeek = false;
         if (State == ESimpleCoverState::PeekSideLeft || State == ESimpleCoverState::PeekSideRight || State == ESimpleCoverState::PeekOver)
         {
             ChangeState(ESimpleCoverState::InCover);
@@ -214,6 +216,11 @@ void UCoverControllerComponent::SetAiming(bool bAiming)
     }
 
     UpdateCameraOffsets();
+}
+
+void UCoverControllerComponent::SetPreferRightPeek(bool bPrefer)
+{
+    bPreferRightPeek = bPrefer;
 }
 
 void UCoverControllerComponent::AddSlideInput(float AxisX)
@@ -403,7 +410,11 @@ void UCoverControllerComponent::UpdatePeeks()
             const bool bAllowLeft = bLeftOpen && DistanceToLeftEdge <= EndPeekWindow;
             const bool bAllowRight = bRightOpen && DistanceToRightEdge <= EndPeekWindow;
 
-            if (bAllowLeft && (!bAllowRight || DistanceToLeftEdge <= DistanceToRightEdge))
+            if (bPreferRightPeek && bAllowRight)
+            {
+                TargetState = ESimpleCoverState::PeekSideRight;
+            }
+            else if (bAllowLeft && (!bAllowRight || DistanceToLeftEdge <= DistanceToRightEdge))
             {
                 TargetState = ESimpleCoverState::PeekSideLeft;
             }

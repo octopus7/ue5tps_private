@@ -490,6 +490,10 @@ void ATPSPlayer::AimStarted()
 	if (CoverController)
 	{
 		CoverController->SetAiming(true);
+		if (IsInCover())
+		{
+			CoverController->SetPreferRightPeek(true);
+		}
 	}
 	UpdateRotationSettings();
 }
@@ -499,6 +503,7 @@ void ATPSPlayer::AimStopped()
 	bIsAiming = false;
 	if (CoverController)
 	{
+		CoverController->SetPreferRightPeek(false);
 		CoverController->SetAiming(false);
 	}
 	UpdateRotationSettings();

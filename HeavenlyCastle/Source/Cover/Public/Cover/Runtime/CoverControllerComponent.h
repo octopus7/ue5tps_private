@@ -34,6 +34,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Cover", meta = (DisplayName = "Set Aiming", ToolTip = "커버 에이밍 상태를 갱신합니다."))
     void SetAiming(bool bAiming);
 
+    UFUNCTION(BlueprintCallable, Category = "Cover", meta = (DisplayName = "Set Prefer Right Peek", ToolTip = "가능하다면 우측 빼꼼 상태를 우선하도록 설정합니다."))
+    void SetPreferRightPeek(bool bPrefer);
+
     UFUNCTION(BlueprintCallable, Category = "Cover", meta = (DisplayName = "Add Slide Input", ToolTip = "라인을 따라 좌우 이동 입력을 추가합니다."))
     void AddSlideInput(float AxisX);
 
@@ -125,4 +128,6 @@ private:
     float CachedSlideInput;
     float SnapElapsed;
     mutable TWeakObjectPtr<UCoverRegistrySubsystem> RegistryCached;
+
+    bool bPreferRightPeek;
 };
