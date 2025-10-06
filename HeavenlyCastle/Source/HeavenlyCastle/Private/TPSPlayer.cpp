@@ -5,6 +5,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
@@ -29,6 +30,7 @@ ATPSPlayer::ATPSPlayer()
 
 	// Initialize projectile prediction speed
 	ProjectilePredictionSpeed = 3000.f;
+	CameraAimTraceDistance = 50000.f;
 
 	// Initialize automatic fire rate
 	TimeBetweenShots = 0.1f;
@@ -666,22 +668,25 @@ void ATPSPlayer::Fire()
 
 			// Get the Muzzle socket transform from the spawned weapon
 			FVector SpawnLocation;
-			FRotator SpawnRotation;
+			FRotator MuzzleRotation;
 			if (UMeshComponent* MuzzleMesh = SpawnedWeapon->FindComponentByClass<UMeshComponent>())
 			{
 				SpawnLocation = MuzzleMesh->GetSocketLocation(FName("Muzzle"));
-				SpawnRotation = MuzzleMesh->GetSocketRotation(FName("Muzzle"));
+				MuzzleRotation = MuzzleMesh->GetSocketRotation(FName("Muzzle"));
 			}
 			else
 			{
 				// Fallback to projectile spawn point if Muzzle socket is not found
 				SpawnLocation = ProjectileSpawnPoint->GetComponentLocation();
-				SpawnRotation = GetActorForwardVector().Rotation();
+				MuzzleRotation = GetActorForwardVector().Rotation();
 			}
 
+			FVector AimPoint = SpawnLocation + MuzzleRotation.Vector() * CameraAimTraceDistance;
+			const FVector CameraAimDirection = CalculateCameraAimDirection(SpawnLocation, AimPoint);
+			const FVector AimDirection = CameraAimDirection.IsNearlyZero() ? MuzzleRotation.Vector() : CameraAimDirection;
+			const FRotator SpawnRotation = AimDirection.Rotation();
 
-			const FVector AimDirection = SpawnRotation.Vector();
-			if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, SpawnLocation + AimDirection * 1200.f))
+			if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, AimPoint))
 			{
 				UE_LOG(LogTemp, Verbose, TEXT("Fire blocked: cover occlusion"));
 				return;
@@ -711,6 +716,66 @@ void ATPSPlayer::Fire()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ProjectileClass or SpawnedWeapon not set!"));
 	}
+}
+
+
+FVector ATPSPlayer::CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint)
+{
+	OutAimPoint = MuzzleLocation;
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const float EffectiveTraceDistance = CameraAimTraceDistance > 0.f ? CameraAimTraceDistance : 10000.f;
+
+	FVector ViewLocation = MuzzleLocation;
+	FRotator ViewRotation = GetActorRotation();
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	}
+	else if (FollowCamera)
+	{
+		ViewLocation = FollowCamera->GetComponentLocation();
+		ViewRotation = FollowCamera->GetComponentRotation();
+	}
+
+	const FVector TraceStart = ViewLocation;
+	const FVector TraceEnd = TraceStart + ViewRotation.Vector() * EffectiveTraceDistance;
+
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(TPSPlayerFireTrace), true, this);
+	TraceParams.bTraceComplex = true;
+	TraceParams.AddIgnoredActor(this);
+	if (SpawnedWeapon)
+	{
+		TraceParams.AddIgnoredActor(SpawnedWeapon);
+	}
+	if (HeldGrenade)
+	{
+		TraceParams.AddIgnoredActor(HeldGrenade);
+	}
+
+	FHitResult HitResult;
+	if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, TraceParams))
+	{
+		OutAimPoint = HitResult.ImpactPoint;
+	}
+	else
+	{
+		OutAimPoint = TraceEnd;
+	}
+
+	const FVector AimVector = OutAimPoint - MuzzleLocation;
+	if (!AimVector.IsNearlyZero())
+	{
+		return AimVector.GetSafeNormal();
+	}
+
+	return FVector::ZeroVector;
 }
 
 

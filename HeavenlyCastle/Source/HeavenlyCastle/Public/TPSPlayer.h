@@ -176,6 +176,9 @@ protected:
 	/** Fires a projectile */
 	void Fire();
 
+	/** Computes aim direction from the camera crosshair perspective */
+	FVector CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint);
+
 	/** Projectile spawn point */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class USceneComponent* ProjectileSpawnPoint;
@@ -191,6 +194,10 @@ protected:
     /** Speed used for the projectile trajectory prediction */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile", meta = (AllowPrivateAccess = "true"))
     float ProjectilePredictionSpeed;
+
+    /** Maximum distance for the camera-based aim trace */
+    UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+    float CameraAimTraceDistance;
 
     /************************************************************************
     * Throwable (Grenade)
