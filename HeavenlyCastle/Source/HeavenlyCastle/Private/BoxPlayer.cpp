@@ -1,11 +1,17 @@
 #include "BoxPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/MeshComponent.h"
+#include "Components/SceneComponent.h"
+#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "TimerManager.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -20,6 +26,10 @@ ABoxPlayer::ABoxPlayer()
     DefaultCameraArmLength = 400.f;
     DefaultCameraSocketOffset = FVector(0.f, 50.f, 70.f);
     DefaultWalkSpeed = 500.f;
+    CameraAimTraceDistance = 50000.f;
+    TimeBetweenShots = 0.1f;
+    WeaponSocketName = FName("Weapon");
+    SpawnedWeapon = nullptr;
 
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
@@ -42,6 +52,9 @@ ABoxPlayer::ABoxPlayer()
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
+
+    ProjectileSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("ProjectileSpawnPoint"));
+    ProjectileSpawnPoint->SetupAttachment(GetMesh());
 }
 
 void ABoxPlayer::BeginPlay()
@@ -72,6 +85,27 @@ void ABoxPlayer::BeginPlay()
             }
         }
     }
+
+    if (WeaponBlueprint && GetMesh() && GetMesh()->DoesSocketExist(WeaponSocketName))
+    {
+        if (UWorld* World = GetWorld())
+        {
+            FActorSpawnParameters SpawnParams;
+            SpawnParams.Owner = this;
+            SpawnParams.Instigator = GetInstigator();
+
+            SpawnedWeapon = World->SpawnActor<AActor>(WeaponBlueprint, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+            if (SpawnedWeapon)
+            {
+                FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, false);
+                SpawnedWeapon->AttachToComponent(GetMesh(), AttachmentRules, WeaponSocketName);
+            }
+        }
+    }
+    else if (WeaponBlueprint)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: Weapon socket '%s'를 찾을 수 없습니다."), *WeaponSocketName.ToString());
+    }
 }
 
 void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -94,6 +128,12 @@ void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
         if (LookAction)
         {
             EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABoxPlayer::Look);
+        }
+
+        if (FireAction)
+        {
+            EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ABoxPlayer::StartFire);
+            EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ABoxPlayer::StopFire);
         }
     }
 }
@@ -131,4 +171,129 @@ void ABoxPlayer::Look(const FInputActionValue& Value)
         AddControllerYawInput(LookAxisVector.X);
         AddControllerPitchInput(LookAxisVector.Y);
     }
+}
+
+void ABoxPlayer::StartFire()
+{
+    Fire();
+
+    if (TimeBetweenShots > 0.f)
+    {
+        GetWorldTimerManager().SetTimer(AutomaticFireHandle, this, &ABoxPlayer::Fire, TimeBetweenShots, true);
+    }
+}
+
+void ABoxPlayer::StopFire()
+{
+    GetWorldTimerManager().ClearTimer(AutomaticFireHandle);
+}
+
+void ABoxPlayer::Fire()
+{
+    if (!ProjectileClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: ProjectileClass가 설정되지 않았습니다."));
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    FVector SpawnLocation = GetActorLocation();
+    FRotator SpawnRotation = GetActorRotation();
+
+    bool bHasValidMuzzle = false;
+    if (SpawnedWeapon)
+    {
+        if (UMeshComponent* MuzzleMesh = SpawnedWeapon->FindComponentByClass<UMeshComponent>())
+        {
+            static const FName MuzzleSocketName("Muzzle");
+            if (MuzzleMesh->DoesSocketExist(MuzzleSocketName))
+            {
+                SpawnLocation = MuzzleMesh->GetSocketLocation(MuzzleSocketName);
+                SpawnRotation = MuzzleMesh->GetSocketRotation(MuzzleSocketName);
+                bHasValidMuzzle = true;
+            }
+        }
+    }
+
+    if (!bHasValidMuzzle && ProjectileSpawnPoint)
+    {
+        SpawnLocation = ProjectileSpawnPoint->GetComponentLocation();
+        SpawnRotation = ProjectileSpawnPoint->GetComponentRotation();
+    }
+
+    FVector AimPoint = SpawnLocation + SpawnRotation.Vector() * CameraAimTraceDistance;
+    const FVector AimDirection = CalculateCameraAimDirection(SpawnLocation, AimPoint);
+    const FVector FinalDirection = AimDirection.IsNearlyZero() ? SpawnRotation.Vector() : AimDirection;
+    const FRotator FinalRotation = FinalDirection.Rotation();
+
+    DrawDebugLine(World, SpawnLocation, AimPoint, FColor::Cyan, false, 1.0f, 0, 1.5f);
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.Instigator = GetInstigator();
+
+    if (AActor* SpawnedProjectile = World->SpawnActor<AActor>(ProjectileClass, SpawnLocation, FinalRotation, SpawnParams))
+    {
+        if (FireEffect)
+        {
+            UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, FireEffect, SpawnLocation, FinalRotation);
+        }
+
+        if (UProjectileMovementComponent* ProjectileMovement = SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>())
+        {
+            UE_LOG(LogTemp, Verbose, TEXT("BoxPlayer: Projectile speed %f"), ProjectileMovement->InitialSpeed);
+        }
+    }
+}
+
+FVector ABoxPlayer::CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint)
+{
+    OutAimPoint = MuzzleLocation;
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return FVector::ZeroVector;
+    }
+
+    const float TraceDistance = CameraAimTraceDistance > 0.f ? CameraAimTraceDistance : 10000.f;
+
+    FVector ViewLocation = MuzzleLocation;
+    FRotator ViewRotation = GetActorRotation();
+
+    if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    }
+    else if (FollowCamera)
+    {
+        ViewLocation = FollowCamera->GetComponentLocation();
+        ViewRotation = FollowCamera->GetComponentRotation();
+    }
+
+    const FVector TraceStart = ViewLocation;
+    const FVector TraceEnd = TraceStart + ViewRotation.Vector() * TraceDistance;
+
+    FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(BoxPlayerFireTrace), true, this);
+    TraceParams.bTraceComplex = true;
+    TraceParams.AddIgnoredActor(this);
+    if (SpawnedWeapon)
+    {
+        TraceParams.AddIgnoredActor(SpawnedWeapon);
+    }
+
+    FHitResult Hit;
+    if (World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, TraceParams))
+    {
+        OutAimPoint = Hit.ImpactPoint;
+        return (Hit.ImpactPoint - MuzzleLocation).GetSafeNormal();
+    }
+
+    OutAimPoint = TraceEnd;
+    return (TraceEnd - MuzzleLocation).GetSafeNormal();
 }

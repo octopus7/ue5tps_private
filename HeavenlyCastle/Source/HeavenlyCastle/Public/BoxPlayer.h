@@ -9,6 +9,8 @@ class UInputAction;
 struct FInputActionValue;
 class USpringArmComponent;
 class UCameraComponent;
+class USceneComponent;
+class UNiagaraSystem;
 
 /**
  * 기본 TPS 플레이어의 카메라/이동/점프만을 사용한 더미 박스 플레이어
@@ -61,9 +63,45 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* JumpAction;
 
+    /** 발사 입력 액션 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* FireAction;
+
     /** 기본 걷기 속도 */
     UPROPERTY(EditDefaultsOnly, Category = "Movement")
     float DefaultWalkSpeed;
+
+    /** 탄환 스폰 지점 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+    USceneComponent* ProjectileSpawnPoint;
+
+    /** 발사할 탄환 클래스 */
+    UPROPERTY(EditDefaultsOnly, Category = "Combat")
+    TSubclassOf<AActor> ProjectileClass;
+
+    /** 발사 이펙트 */
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    UNiagaraSystem* FireEffect;
+
+    /** 카메라 에임 트레이스 거리 */
+    UPROPERTY(EditDefaultsOnly, Category = "Combat")
+    float CameraAimTraceDistance;
+
+    /** 발사 간격(자동 사격) */
+    UPROPERTY(EditAnywhere, Category = "Combat")
+    float TimeBetweenShots;
+
+    /** 스폰할 무기 BP */
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+    TSubclassOf<AActor> WeaponBlueprint;
+
+    /** 무기 장착 소켓 */
+    UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+    FName WeaponSocketName;
+
+    /** 스폰된 무기 참조 */
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+    AActor* SpawnedWeapon;
 
 protected:
     /** 이동 입력 처리 */
@@ -71,6 +109,22 @@ protected:
 
     /** 카메라 회전 입력 처리 */
     void Look(const FInputActionValue& Value);
+
+    /** 발사 시작 */
+    void StartFire();
+
+    /** 발사 종료 */
+    void StopFire();
+
+    /** 실제 발사 */
+    void Fire();
+
+    /** 카메라 기준 조준 방향 계산 */
+    FVector CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint);
+
+private:
+    /** 자동사격 타이머 */
+    FTimerHandle AutomaticFireHandle;
 
 public:
     /** CameraBoom 참조 */
