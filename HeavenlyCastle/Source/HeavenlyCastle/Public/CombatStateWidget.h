@@ -60,7 +60,7 @@ public:
     UCoverViewModel* CoverVM = nullptr;
 
     // Optional: bind directly to a ProgressBar named HPBar (if present in the widget tree via UMG designer)
-    UPROPERTY(meta=(BindWidget), BlueprintReadOnly)
+    UPROPERTY(meta=(BindWidgetOptional), BlueprintReadOnly)
     UProgressBar* HPBar = nullptr;
 
 protected:
