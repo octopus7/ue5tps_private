@@ -9,6 +9,8 @@
 class UUserWidget;
 class UCombatStateViewModel;
 class UHealthViewModel;
+class UAmmoViewModel;
+class UCoverViewModel;
 enum class ECombatState : uint8;
 
 UCLASS()
@@ -32,11 +34,23 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI")
     void PushHealth(float Current, float Max);
 
+    UFUNCTION(BlueprintCallable, Category = "UI")
+    void PushAmmo(int32 Current, int32 Max);
+
+    UFUNCTION(BlueprintCallable, Category = "UI")
+    void PushCoverAvailability(bool bAvailable);
+
     UFUNCTION(BlueprintPure, Category = "UI")
     UCombatStateViewModel* GetCombatVM() const { return CombatVM; }
 
     UFUNCTION(BlueprintPure, Category = "UI")
     UHealthViewModel* GetHealthVM() const { return HealthVM; }
+
+    UFUNCTION(BlueprintPure, Category = "UI")
+    UAmmoViewModel* GetAmmoVM() const { return AmmoVM; }
+
+    UFUNCTION(BlueprintPure, Category = "UI")
+    UCoverViewModel* GetCoverVM() const { return CoverVM; }
 
 public:
     /** HUD widget class (soft reference) to create for this local player */
@@ -52,4 +66,10 @@ private:
 
     UPROPERTY()
     UHealthViewModel* HealthVM = nullptr;
+
+    UPROPERTY()
+    UAmmoViewModel* AmmoVM = nullptr;
+
+    UPROPERTY()
+    UCoverViewModel* CoverVM = nullptr;
 };

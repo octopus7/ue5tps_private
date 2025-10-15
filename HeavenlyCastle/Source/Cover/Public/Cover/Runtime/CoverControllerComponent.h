@@ -43,6 +43,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Cover", meta = (DisplayName = "Is Muzzle Clear", ToolTip = "목표 지점을 향한 사격이 벽에 막히는지 검사합니다."))
     bool IsMuzzleClear(const FVector& Muzzle, const FVector& AimPoint) const;
 
+    UFUNCTION(BlueprintCallable, Category = "Cover", meta = (DisplayName = "Is Cover Available", ToolTip = "현재 위치에서 커버에 진입 가능 여부를 반환합니다."))
+    bool IsCoverAvailable() const;
+
     UPROPERTY(BlueprintAssignable, Category = "Cover")
     FOnCoverStateChanged OnStateChanged;
 

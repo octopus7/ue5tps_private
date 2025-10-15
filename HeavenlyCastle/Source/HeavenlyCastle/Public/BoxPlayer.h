@@ -11,6 +11,7 @@ struct FInputActionValue;
 class USpringArmComponent;
 class UCameraComponent;
 class USceneComponent;
+class UUserWidget;
 class UNiagaraSystem;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
@@ -134,6 +135,10 @@ protected:
     /** 스폰된 무기 참조 */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     AActor* SpawnedWeapon;
+
+    /** HUD 위젯 클래스 (미지정 시 기본 CombatStateWidget 사용) */
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> CombatStateWidgetClass;
 
     /** 커버 탈출 임계값 */
     UPROPERTY(EditDefaultsOnly, Category = "Cover")

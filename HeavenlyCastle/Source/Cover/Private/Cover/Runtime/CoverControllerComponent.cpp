@@ -192,6 +192,27 @@ bool UCoverControllerComponent::TryEnterCover()
     return true;
 }
 
+bool UCoverControllerComponent::IsCoverAvailable() const
+{
+    if (State != ESimpleCoverState::Free)
+    {
+        return true;
+    }
+
+    AActor* OwnerActor = GetOwner();
+    if (!OwnerActor)
+    {
+        return false;
+    }
+
+    const FVector ActorLocation = OwnerActor->GetActorLocation();
+    const FVector Forward = OwnerActor->GetActorForwardVector();
+
+    FCoverLine Line;
+    UCoverLineComponent* OwnerComponent = nullptr;
+    return QueryBestLine(ActorLocation, Forward, Line, OwnerComponent);
+}
+
 void UCoverControllerComponent::ExitCover()
 {
     if (State == ESimpleCoverState::Free)

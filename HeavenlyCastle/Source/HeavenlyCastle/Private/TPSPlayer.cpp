@@ -121,6 +121,12 @@ void ATPSPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
+    MaxAmmo = FMath::Max(0, MaxAmmo);
+    const int32 ClampedStart = FMath::Max(0, StartingAmmo);
+    CurrentAmmo = bInfiniteAmmo ? MaxAmmo : FMath::Clamp(ClampedStart, 0, MaxAmmo);
+    CoverAvailabilityElapsed = 0.f;
+    bCachedCoverAvailable = CoverController ? CoverController->IsCoverAvailable() : false;
+
 	// Set initial camera boom properties
 	CameraBoom->TargetArmLength = DefaultCameraArmLength;
 	CameraBoom->SocketOffset = DefaultCameraSocketOffset;
@@ -170,6 +176,7 @@ void ATPSPlayer::BeginPlay()
 	{
 		CoverController->OnStateChanged.AddDynamic(this, &ATPSPlayer::OnCoverStateChanged);
 		CoverController->SetAiming(bIsAiming);
+        bCachedCoverAvailable = CoverController->IsCoverAvailable();
 	}
 
 	if (CoverCamera)
@@ -197,6 +204,8 @@ void ATPSPlayer::BeginPlay()
 				{
 					UIS->PushHealth(HealthComponent->GetHealth(), HealthComponent->GetDefaultHealth());
 				}
+                UIS->PushAmmo(CurrentAmmo, bInfiniteAmmo ? -1 : MaxAmmo);
+                UIS->PushCoverAvailability(bCachedCoverAvailable);
 			}
 		}
 	}
@@ -310,6 +319,8 @@ void ATPSPlayer::Tick(float DeltaTime)
 
 
 	// Removed SPD on-screen movement debug overlay
+
+    EvaluateCoverAvailability(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -541,10 +552,24 @@ void ATPSPlayer::StartFire()
 		}
 	}
 
+    if (!bInfiniteAmmo && CurrentAmmo <= 0)
+    {
+        HandleOutOfAmmo();
+        return;
+    }
+
+    if (!ProjectileClass || !SpawnedWeapon)
+    {
+        return;
+    }
+
 	bIsFiring = true;
 	UpdateRotationSettings();
 	Fire(); // Fire immediately on press
-	GetWorldTimerManager().SetTimer(TimerHandle_AutomaticFire, this, &ATPSPlayer::Fire, TimeBetweenShots, true);
+    if (bIsFiring && TimeBetweenShots > 0.f)
+    {
+        GetWorldTimerManager().SetTimer(TimerHandle_AutomaticFire, this, &ATPSPlayer::Fire, TimeBetweenShots, true);
+    }
 }
 
 void ATPSPlayer::StopFire()
@@ -650,6 +675,14 @@ bool ATPSPlayer::IsInCover() const
 void ATPSPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 {
     UpdateRotationSettings();
+
+    const bool bAvailableNow = CoverController ? CoverController->IsCoverAvailable() : false;
+    if (bAvailableNow != bCachedCoverAvailable)
+    {
+        bCachedCoverAvailable = bAvailableNow;
+        PushCoverAvailabilityToUI(bCachedCoverAvailable);
+    }
+    CoverAvailabilityElapsed = 0.f;
 }
 
 void ATPSPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
@@ -680,67 +713,79 @@ void ATPSPlayer::UpdateRotationSettings()
 
 void ATPSPlayer::Fire()
 {
-	// Implement projectile firing logic here
-	if (CombatState == ECombatState::Armed && ProjectileClass && SpawnedWeapon)
+	if (CombatState != ECombatState::Armed || !ProjectileClass || !SpawnedWeapon)
 	{
-		UWorld* World = GetWorld();
-		if (World)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Owner = this;
-			SpawnParams.Instigator = GetInstigator();
+		UE_LOG(LogTemp, Warning, TEXT("Cannot fire: weapon not ready."));
+		return;
+	}
 
-			// Get the Muzzle socket transform from the spawned weapon
-			FVector SpawnLocation;
-			FRotator MuzzleRotation;
-			if (UMeshComponent* MuzzleMesh = SpawnedWeapon->FindComponentByClass<UMeshComponent>())
-			{
-				SpawnLocation = MuzzleMesh->GetSocketLocation(FName("Muzzle"));
-				MuzzleRotation = MuzzleMesh->GetSocketRotation(FName("Muzzle"));
-			}
-			else
-			{
-				// Fallback to projectile spawn point if Muzzle socket is not found
-				SpawnLocation = ProjectileSpawnPoint->GetComponentLocation();
-				MuzzleRotation = GetActorForwardVector().Rotation();
-			}
+	if (!bInfiniteAmmo && CurrentAmmo <= 0)
+	{
+		HandleOutOfAmmo();
+		return;
+	}
 
-			FVector AimPoint = SpawnLocation + MuzzleRotation.Vector() * CameraAimTraceDistance;
-			const FVector CameraAimDirection = CalculateCameraAimDirection(SpawnLocation, AimPoint);
-			const FVector AimDirection = CameraAimDirection.IsNearlyZero() ? MuzzleRotation.Vector() : CameraAimDirection;
-			const FRotator SpawnRotation = AimDirection.Rotation();
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
 
-			DrawDebugLine(World, SpawnLocation, AimPoint, FColor::Cyan, false, 1.0f, 0, 1.5f);
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetInstigator();
 
-			if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, AimPoint))
-			{
-				UE_LOG(LogTemp, Verbose, TEXT("Fire blocked: cover occlusion"));
-				return;
-			}
-
-			// Spawn the projectile
-			AActor* SpawnedProjectile = World->SpawnActor<AActor>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
-			if (SpawnedProjectile)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Projectile Fired!"));
-
-				if (FireEffect)
-				{
-					UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), FireEffect, SpawnLocation, SpawnRotation);
-				}
-
-				// Update the prediction speed from the spawned projectile
-				UProjectileMovementComponent* ProjectileMovement = SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>();
-				if (ProjectileMovement)
-				{
-					ProjectilePredictionSpeed = ProjectileMovement->InitialSpeed;
-				}
-			}
-		}
+	// Get the Muzzle socket transform from the spawned weapon
+	FVector SpawnLocation;
+	FRotator MuzzleRotation;
+	if (UMeshComponent* MuzzleMesh = SpawnedWeapon->FindComponentByClass<UMeshComponent>())
+	{
+		SpawnLocation = MuzzleMesh->GetSocketLocation(FName("Muzzle"));
+		MuzzleRotation = MuzzleMesh->GetSocketRotation(FName("Muzzle"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ProjectileClass or SpawnedWeapon not set!"));
+		// Fallback to projectile spawn point if Muzzle socket is not found
+		SpawnLocation = ProjectileSpawnPoint->GetComponentLocation();
+		MuzzleRotation = GetActorForwardVector().Rotation();
+	}
+
+	FVector AimPoint = SpawnLocation + MuzzleRotation.Vector() * CameraAimTraceDistance;
+	const FVector CameraAimDirection = CalculateCameraAimDirection(SpawnLocation, AimPoint);
+	const FVector AimDirection = CameraAimDirection.IsNearlyZero() ? MuzzleRotation.Vector() : CameraAimDirection;
+	const FRotator SpawnRotation = AimDirection.Rotation();
+
+	DrawDebugLine(World, SpawnLocation, AimPoint, FColor::Cyan, false, 1.0f, 0, 1.5f);
+
+	if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, AimPoint))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("Fire blocked: cover occlusion"));
+		return;
+	}
+
+	// Spawn the projectile
+	AActor* SpawnedProjectile = World->SpawnActor<AActor>(ProjectileClass, SpawnLocation, SpawnRotation, SpawnParams);
+	if (!SpawnedProjectile)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Projectile spawn failed."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Projectile Fired!"));
+
+	if (FireEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, FireEffect, SpawnLocation, SpawnRotation);
+	}
+
+	if (UProjectileMovementComponent* ProjectileMovement = SpawnedProjectile->FindComponentByClass<UProjectileMovementComponent>())
+	{
+		ProjectilePredictionSpeed = ProjectileMovement->InitialSpeed;
+	}
+
+	if (!ConsumeAmmo())
+	{
+		HandleOutOfAmmo();
 	}
 }
 
@@ -843,6 +888,91 @@ void ATPSPlayer::OnHealthChanged(UHealthComponent* OwningHealthComp, float Healt
             }
         }
     }
+}
+
+void ATPSPlayer::PushAmmoToUI()
+{
+    if (APlayerController* PC = Cast<APlayerController>(Controller))
+    {
+        if (ULocalPlayer* LP = PC->GetLocalPlayer())
+        {
+            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
+            {
+                const int32 MaxForUI = bInfiniteAmmo ? -1 : MaxAmmo;
+                UIS->PushAmmo(CurrentAmmo, MaxForUI);
+            }
+        }
+    }
+}
+
+void ATPSPlayer::PushCoverAvailabilityToUI(bool bAvailable)
+{
+    if (APlayerController* PC = Cast<APlayerController>(Controller))
+    {
+        if (ULocalPlayer* LP = PC->GetLocalPlayer())
+        {
+            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
+            {
+                UIS->PushCoverAvailability(bAvailable);
+            }
+        }
+    }
+}
+
+void ATPSPlayer::EvaluateCoverAvailability(float DeltaSeconds)
+{
+    if (!CoverController)
+    {
+        if (bCachedCoverAvailable)
+        {
+            bCachedCoverAvailable = false;
+            PushCoverAvailabilityToUI(false);
+        }
+        return;
+    }
+
+    CoverAvailabilityElapsed += DeltaSeconds;
+    if (CoverAvailabilityElapsed < CoverAvailabilityPollInterval)
+    {
+        return;
+    }
+    CoverAvailabilityElapsed = 0.f;
+
+    const bool bAvailableNow = CoverController->IsCoverAvailable();
+    if (bAvailableNow != bCachedCoverAvailable)
+    {
+        bCachedCoverAvailable = bAvailableNow;
+        PushCoverAvailabilityToUI(bCachedCoverAvailable);
+    }
+}
+
+void ATPSPlayer::HandleOutOfAmmo()
+{
+    GetWorldTimerManager().ClearTimer(TimerHandle_AutomaticFire);
+    if (bIsFiring)
+    {
+        bIsFiring = false;
+        UpdateRotationSettings();
+    }
+    PushAmmoToUI();
+}
+
+bool ATPSPlayer::ConsumeAmmo()
+{
+    if (bInfiniteAmmo)
+    {
+        PushAmmoToUI();
+        return true;
+    }
+
+    if (CurrentAmmo <= 0)
+    {
+        return false;
+    }
+
+    --CurrentAmmo;
+    PushAmmoToUI();
+    return CurrentAmmo > 0;
 }
 
 void ATPSPlayer::ComputeThrowParams(FVector& OutStart, FVector& OutVelocity) const

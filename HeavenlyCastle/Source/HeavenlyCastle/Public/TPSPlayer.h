@@ -255,9 +255,25 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     FName UnarmedBackSocketName;
 
-    /** A reference to the spawned weapon */
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon")
-    AActor* SpawnedWeapon;
+	/** A reference to the spawned weapon */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon")
+	AActor* SpawnedWeapon;
+
+    /** Maximum rounds per magazine */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
+    int32 MaxAmmo = 30;
+
+    /** Initial rounds loaded when the game starts */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
+    int32 StartingAmmo = 30;
+
+    /** When true, ammo is not consumed while firing (debug/testing) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
+    bool bInfiniteAmmo = false;
+
+    /** Current rounds available for firing */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
+    int32 CurrentAmmo = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;
@@ -289,6 +305,12 @@ private:
 
     UFUNCTION()
     void OnHealthChanged(UHealthComponent* OwningHealthComp, float Health, float HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
+
+    void PushAmmoToUI();
+    void PushCoverAvailabilityToUI(bool bAvailable);
+    void EvaluateCoverAvailability(float DeltaSeconds);
+    void HandleOutOfAmmo();
+    bool ConsumeAmmo();
 
 private:
     bool bIsDead;
@@ -396,6 +418,16 @@ protected:
 private:
     /** Cached offset provided by cover camera component */
     FVector CoverCameraOffset = FVector::ZeroVector;
+
+    /** Cached result of the most recent cover availability query */
+    bool bCachedCoverAvailable = false;
+
+    /** Time accumulator used to throttle cover availability polling */
+    float CoverAvailabilityElapsed = 0.f;
+
+    /** Polling interval (seconds) for cover availability updates */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover|UI", meta = (ClampMin = "0.0"))
+    float CoverAvailabilityPollInterval = 0.15f;
 
     bool IsInCover() const;
 

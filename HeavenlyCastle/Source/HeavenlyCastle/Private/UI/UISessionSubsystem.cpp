@@ -4,6 +4,8 @@
 #include "Engine/LocalPlayer.h"
 #include "UI/CombatStateViewModel.h"
 #include "UI/HealthViewModel.h"
+#include "UI/AmmoViewModel.h"
+#include "UI/CoverViewModel.h"
 #include "CombatStateWidget.h"
 
 void UUISessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -13,6 +15,8 @@ void UUISessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     // Create view models
     CombatVM = NewObject<UCombatStateViewModel>(this);
     HealthVM = NewObject<UHealthViewModel>(this);
+    AmmoVM = NewObject<UAmmoViewModel>(this);
+    CoverVM = NewObject<UCoverViewModel>(this);
 }
 
 void UUISessionSubsystem::Deinitialize()
@@ -20,6 +24,8 @@ void UUISessionSubsystem::Deinitialize()
     HUDInstance = nullptr;
     CombatVM = nullptr;
     HealthVM = nullptr;
+    AmmoVM = nullptr;
+    CoverVM = nullptr;
     Super::Deinitialize();
 }
 
@@ -52,7 +58,7 @@ void UUISessionSubsystem::EnsureHUD(APlayerController* OwningPC)
         // Inject ViewModels if widget supports it
         if (UCombatStateWidget* CSW = Cast<UCombatStateWidget>(HUDInstance))
         {
-            CSW->InitializeViewModels(CombatVM, HealthVM);
+            CSW->InitializeViewModels(CombatVM, HealthVM, AmmoVM, CoverVM);
         }
     }
 }
@@ -82,7 +88,7 @@ void UUISessionSubsystem::EnsureHUDWithClass(APlayerController* OwningPC, TSubcl
         HUDInstance->AddToViewport();
         if (UCombatStateWidget* CSW = Cast<UCombatStateWidget>(HUDInstance))
         {
-            CSW->InitializeViewModels(CombatVM, HealthVM);
+            CSW->InitializeViewModels(CombatVM, HealthVM, AmmoVM, CoverVM);
         }
     }
 }
@@ -103,4 +109,22 @@ void UUISessionSubsystem::PushHealth(float Current, float Max)
         HealthVM = NewObject<UHealthViewModel>(this);
     }
     HealthVM->SetHealth(Current, Max);
+}
+
+void UUISessionSubsystem::PushAmmo(int32 Current, int32 Max)
+{
+    if (!AmmoVM)
+    {
+        AmmoVM = NewObject<UAmmoViewModel>(this);
+    }
+    AmmoVM->SetAmmo(Current, Max);
+}
+
+void UUISessionSubsystem::PushCoverAvailability(bool bAvailable)
+{
+    if (!CoverVM)
+    {
+        CoverVM = NewObject<UCoverViewModel>(this);
+    }
+    CoverVM->SetAvailable(bAvailable);
 }

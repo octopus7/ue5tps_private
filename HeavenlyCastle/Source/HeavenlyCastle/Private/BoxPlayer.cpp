@@ -14,6 +14,10 @@
 #include "TimerManager.h"
 #include "Cover/Runtime/CoverControllerComponent.h"
 #include "Cover/Runtime/CoverCameraComponent.h"
+#include "UI/UISessionSubsystem.h"
+#include "CombatStateWidget.h"
+#include "Engine/LocalPlayer.h"
+#include "TPSPlayer.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -130,6 +134,25 @@ void ABoxPlayer::BeginPlay()
     if (CoverCamera)
     {
         CoverCamera->OnCameraOffset.AddDynamic(this, &ABoxPlayer::OnCoverCameraOffsetUpdated);
+    }
+
+    if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+        {
+            if (UUISessionSubsystem* UIS = LocalPlayer->GetSubsystem<UUISessionSubsystem>())
+            {
+                const TSubclassOf<UUserWidget> HUDClassToUse = CombatStateWidgetClass ? CombatStateWidgetClass : TSubclassOf<UUserWidget>(UCombatStateWidget::StaticClass());
+                UIS->EnsureHUDWithClass(PlayerController, HUDClassToUse);
+
+                constexpr float DefaultHealth = 100.f;
+                UIS->PushCombatState(ECombatState::Unarmed);
+                UIS->PushHealth(DefaultHealth, DefaultHealth);
+
+                const bool bCoverAvailable = (CoverController ? CoverController->IsCoverAvailable() : false);
+                UIS->PushCoverAvailability(bCoverAvailable);
+            }
+        }
     }
 }
 
