@@ -27,6 +27,7 @@ protected:
     virtual void BeginPlay() override;
 
 public:
+    virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Jump() override;
 
@@ -47,6 +48,18 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     FVector DefaultCameraSocketOffset;
 
+    /** 에임 시 카메라 거리 */
+    UPROPERTY(EditDefaultsOnly, Category = "Camera")
+    float AimingCameraArmLength;
+
+    /** 에임 시 카메라 소켓 오프셋 */
+    UPROPERTY(EditDefaultsOnly, Category = "Camera")
+    FVector AimingCameraSocketOffset;
+
+    /** 카메라 보간 속도 */
+    UPROPERTY(EditDefaultsOnly, Category = "Camera")
+    float CameraInterpSpeed;
+
     /** 기본 입력 매핑 컨텍스트 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputMappingContext* DefaultMappingContext;
@@ -62,6 +75,10 @@ protected:
     /** 점프 입력 액션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* JumpAction;
+
+    /** 에임 입력 액션 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* AimAction;
 
     /** 발사 입력 액션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -110,6 +127,12 @@ protected:
     /** 카메라 회전 입력 처리 */
     void Look(const FInputActionValue& Value);
 
+    /** 에임 시작 */
+    void AimStarted();
+
+    /** 에임 종료 */
+    void AimStopped();
+
     /** 발사 시작 */
     void StartFire();
 
@@ -122,9 +145,18 @@ protected:
     /** 카메라 기준 조준 방향 계산 */
     FVector CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint);
 
+    /** 카메라 파라미터 업데이트 */
+    void UpdateCamera(float DeltaTime);
+
+    /** 회전 플래그 적용 */
+    void ApplyRotationSettings();
+
 private:
     /** 자동사격 타이머 */
     FTimerHandle AutomaticFireHandle;
+
+    /** 에임 여부 */
+    bool bIsAiming;
 
 public:
     /** CameraBoom 참조 */

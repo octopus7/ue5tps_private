@@ -15,7 +15,8 @@
 
 ABoxPlayer::ABoxPlayer()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
 
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
@@ -25,11 +26,15 @@ ABoxPlayer::ABoxPlayer()
 
     DefaultCameraArmLength = 400.f;
     DefaultCameraSocketOffset = FVector(0.f, 50.f, 70.f);
+    AimingCameraArmLength = 200.f;
+    AimingCameraSocketOffset = FVector(0.f, 70.f, 60.f);
+    CameraInterpSpeed = 20.f;
     DefaultWalkSpeed = 500.f;
     CameraAimTraceDistance = 50000.f;
     TimeBetweenShots = 0.1f;
     WeaponSocketName = FName("Weapon");
     SpawnedWeapon = nullptr;
+    bIsAiming = false;
 
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
@@ -72,6 +77,8 @@ void ABoxPlayer::BeginPlay()
         MovementComp->MaxWalkSpeed = DefaultWalkSpeed;
     }
 
+    ApplyRotationSettings();
+
     if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
     {
         if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
@@ -108,6 +115,12 @@ void ABoxPlayer::BeginPlay()
     }
 }
 
+void ABoxPlayer::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    UpdateCamera(DeltaTime);
+}
+
 void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -128,6 +141,12 @@ void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
         if (LookAction)
         {
             EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ABoxPlayer::Look);
+        }
+
+        if (AimAction)
+        {
+            EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ABoxPlayer::AimStarted);
+            EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ABoxPlayer::AimStopped);
         }
 
         if (FireAction)
@@ -171,6 +190,18 @@ void ABoxPlayer::Look(const FInputActionValue& Value)
         AddControllerYawInput(LookAxisVector.X);
         AddControllerPitchInput(LookAxisVector.Y);
     }
+}
+
+void ABoxPlayer::AimStarted()
+{
+    bIsAiming = true;
+    ApplyRotationSettings();
+}
+
+void ABoxPlayer::AimStopped()
+{
+    bIsAiming = false;
+    ApplyRotationSettings();
 }
 
 void ABoxPlayer::StartFire()
@@ -296,4 +327,44 @@ FVector ABoxPlayer::CalculateCameraAimDirection(const FVector& MuzzleLocation, F
 
     OutAimPoint = TraceEnd;
     return (TraceEnd - MuzzleLocation).GetSafeNormal();
+}
+
+void ABoxPlayer::UpdateCamera(float DeltaTime)
+{
+    if (!CameraBoom)
+    {
+        return;
+    }
+
+    const float DesiredArmLength = bIsAiming ? AimingCameraArmLength : DefaultCameraArmLength;
+    const FVector DesiredSocketOffset = bIsAiming ? AimingCameraSocketOffset : DefaultCameraSocketOffset;
+    const float EffectiveInterpSpeed = FMath::Max(CameraInterpSpeed, 0.f);
+
+    if (EffectiveInterpSpeed > 0.f)
+    {
+        CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, DesiredArmLength, DeltaTime, EffectiveInterpSpeed);
+        CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, DesiredSocketOffset, DeltaTime, EffectiveInterpSpeed);
+    }
+    else
+    {
+        CameraBoom->TargetArmLength = DesiredArmLength;
+        CameraBoom->SocketOffset = DesiredSocketOffset;
+    }
+}
+
+void ABoxPlayer::ApplyRotationSettings()
+{
+    if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
+    {
+        if (bIsAiming)
+        {
+            MovementComp->bOrientRotationToMovement = false;
+            bUseControllerRotationYaw = true;
+        }
+        else
+        {
+            MovementComp->bOrientRotationToMovement = true;
+            bUseControllerRotationYaw = false;
+        }
+    }
 }
