@@ -12,6 +12,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
+#include "Cover/Runtime/CoverControllerComponent.h"
+#include "Cover/Runtime/CoverCameraComponent.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -35,6 +37,8 @@ ABoxPlayer::ABoxPlayer()
     WeaponSocketName = FName("Weapon");
     SpawnedWeapon = nullptr;
     bIsAiming = false;
+    CoverExitForwardThreshold = 0.6f;
+    CoverCameraOffset = FVector::ZeroVector;
 
     if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
     {
@@ -57,6 +61,9 @@ ABoxPlayer::ABoxPlayer()
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
+
+    CoverController = CreateDefaultSubobject<UCoverControllerComponent>(TEXT("CoverController"));
+    CoverCamera = CreateDefaultSubobject<UCoverCameraComponent>(TEXT("CoverCamera"));
 
     ProjectileSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("ProjectileSpawnPoint"));
     ProjectileSpawnPoint->SetupAttachment(GetMesh());
@@ -113,6 +120,17 @@ void ABoxPlayer::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: Weapon socket '%s'를 찾을 수 없습니다."), *WeaponSocketName.ToString());
     }
+
+    if (CoverController)
+    {
+        CoverController->OnStateChanged.AddDynamic(this, &ABoxPlayer::OnCoverStateChanged);
+        CoverController->SetAiming(bIsAiming);
+    }
+
+    if (CoverCamera)
+    {
+        CoverCamera->OnCameraOffset.AddDynamic(this, &ABoxPlayer::OnCoverCameraOffsetUpdated);
+    }
 }
 
 void ABoxPlayer::Tick(float DeltaTime)
@@ -149,6 +167,11 @@ void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
             EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ABoxPlayer::AimStopped);
         }
 
+        if (CoverAction)
+        {
+            EnhancedInputComponent->BindAction(CoverAction, ETriggerEvent::Started, this, &ABoxPlayer::HandleCoverAction);
+        }
+
         if (FireAction)
         {
             EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ABoxPlayer::StartFire);
@@ -159,6 +182,11 @@ void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 void ABoxPlayer::Jump()
 {
+    if (CoverController && IsInCover())
+    {
+        CoverController->ExitCover();
+    }
+
     Super::Jump();
 }
 
@@ -176,6 +204,48 @@ void ABoxPlayer::Move(const FInputActionValue& Value)
 
     const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
     const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+    const FVector WorldInput = ForwardDirection * MovementVector.Y + RightDirection * MovementVector.X;
+
+    if (CoverController && IsInCover())
+    {
+        const float ForwardAxis = MovementVector.Y;
+        if (ForwardAxis < -CoverExitForwardThreshold)
+        {
+            CoverController->ExitCover();
+            return;
+        }
+
+        const FVector Tangent = CoverController->GetCurrentTangent();
+        const FVector Normal = CoverController->GetCurrentNormal();
+        float SlideAxis = 0.f;
+        if (!Tangent.IsNearlyZero())
+        {
+            const float InputMagnitude = FMath::Min(WorldInput.Size(), 1.f);
+            const FVector NormalizedInput = WorldInput.GetSafeNormal();
+
+            FVector SlideDirection = Tangent;
+            if (Normal.IsNearlyZero())
+            {
+                SlideAxis = FVector::DotProduct(NormalizedInput, SlideDirection) * InputMagnitude;
+            }
+            else
+            {
+                const FVector NormalizedNormal = Normal.GetSafeNormal();
+                const FVector ProjectedInput = NormalizedInput - FVector::DotProduct(NormalizedInput, NormalizedNormal) * NormalizedNormal;
+
+                const FVector InputRight = FVector::CrossProduct(NormalizedNormal, ProjectedInput).GetSafeNormal();
+                if (!InputRight.IsNearlyZero() && FVector::DotProduct(InputRight, Tangent) < 0.f)
+                {
+                    SlideDirection *= -1.f;
+                }
+
+                SlideAxis = FVector::DotProduct(ProjectedInput.GetSafeNormal(), SlideDirection) * InputMagnitude;
+            }
+        }
+
+        CoverController->AddSlideInput(SlideAxis);
+        return;
+    }
 
     AddMovementInput(ForwardDirection, MovementVector.Y);
     AddMovementInput(RightDirection, MovementVector.X);
@@ -195,17 +265,43 @@ void ABoxPlayer::Look(const FInputActionValue& Value)
 void ABoxPlayer::AimStarted()
 {
     bIsAiming = true;
+    if (CoverController)
+    {
+        CoverController->SetAiming(true);
+        if (IsInCover())
+        {
+            CoverController->SetPreferRightPeek(true);
+        }
+    }
     ApplyRotationSettings();
 }
 
 void ABoxPlayer::AimStopped()
 {
     bIsAiming = false;
+    if (CoverController)
+    {
+        CoverController->SetPreferRightPeek(false);
+        CoverController->SetAiming(false);
+    }
     ApplyRotationSettings();
 }
 
 void ABoxPlayer::StartFire()
 {
+    if (IsInCover() && CoverController)
+    {
+        switch (CoverController->State)
+        {
+        case ESimpleCoverState::PeekSideLeft:
+        case ESimpleCoverState::PeekSideRight:
+        case ESimpleCoverState::PeekOver:
+            break;
+        default:
+            return;
+        }
+    }
+
     Fire();
 
     if (TimeBetweenShots > 0.f)
@@ -263,6 +359,12 @@ void ABoxPlayer::Fire()
     const FRotator FinalRotation = FinalDirection.Rotation();
 
     DrawDebugLine(World, SpawnLocation, AimPoint, FColor::Cyan, false, 1.0f, 0, 1.5f);
+
+    if (CoverController && !CoverController->IsMuzzleClear(SpawnLocation, AimPoint))
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("BoxPlayer: Fire blocked by cover occlusion"));
+        return;
+    }
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = this;
@@ -337,7 +439,9 @@ void ABoxPlayer::UpdateCamera(float DeltaTime)
     }
 
     const float DesiredArmLength = bIsAiming ? AimingCameraArmLength : DefaultCameraArmLength;
-    const FVector DesiredSocketOffset = bIsAiming ? AimingCameraSocketOffset : DefaultCameraSocketOffset;
+    FVector DesiredSocketOffset = bIsAiming ? AimingCameraSocketOffset : DefaultCameraSocketOffset;
+    DesiredSocketOffset += CoverCameraOffset;
+
     const float EffectiveInterpSpeed = FMath::Max(CameraInterpSpeed, 0.f);
 
     if (EffectiveInterpSpeed > 0.f)
@@ -367,4 +471,50 @@ void ABoxPlayer::ApplyRotationSettings()
             bUseControllerRotationYaw = false;
         }
     }
+}
+
+void ABoxPlayer::HandleCoverAction()
+{
+    if (!CoverController)
+    {
+        return;
+    }
+
+    if (IsInCover())
+    {
+        CoverController->ExitCover();
+        return;
+    }
+
+    if (CoverController->TryEnterCover())
+    {
+        CoverController->SetAiming(bIsAiming);
+    }
+}
+
+bool ABoxPlayer::IsInCover() const
+{
+    if (!CoverController)
+    {
+        return false;
+    }
+
+    switch (CoverController->State)
+    {
+    case ESimpleCoverState::Free:
+    case ESimpleCoverState::Exit:
+        return false;
+    default:
+        return true;
+    }
+}
+
+void ABoxPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
+{
+    ApplyRotationSettings();
+}
+
+void ABoxPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
+{
+    CoverCameraOffset = Offset;
 }

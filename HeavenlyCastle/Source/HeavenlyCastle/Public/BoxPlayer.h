@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Cover/CoverTypes.h"
 #include "BoxPlayer.generated.h"
 
 class UInputMappingContext;
@@ -11,6 +12,8 @@ class USpringArmComponent;
 class UCameraComponent;
 class USceneComponent;
 class UNiagaraSystem;
+class UCoverControllerComponent;
+class UCoverCameraComponent;
 
 /**
  * 기본 TPS 플레이어의 카메라/이동/점프만을 사용한 더미 박스 플레이어
@@ -39,6 +42,14 @@ protected:
     /** 팔로우 카메라 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     UCameraComponent* FollowCamera;
+
+    /** 커버 컨트롤러 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
+    UCoverControllerComponent* CoverController;
+
+    /** 커버 카메라 헬퍼 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
+    UCoverCameraComponent* CoverCamera;
 
     /** 기본 카메라 거리 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
@@ -80,6 +91,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* AimAction;
 
+    /** 커버 입력 액션 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* CoverAction;
+
     /** 발사 입력 액션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* FireAction;
@@ -120,6 +135,10 @@ protected:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     AActor* SpawnedWeapon;
 
+    /** 커버 탈출 임계값 */
+    UPROPERTY(EditDefaultsOnly, Category = "Cover")
+    float CoverExitForwardThreshold;
+
 protected:
     /** 이동 입력 처리 */
     void Move(const FInputActionValue& Value);
@@ -151,12 +170,29 @@ protected:
     /** 회전 플래그 적용 */
     void ApplyRotationSettings();
 
+    /** 커버 입력 처리 */
+    void HandleCoverAction();
+
+    /** 커버 여부 확인 */
+    bool IsInCover() const;
+
+    /** 커버 상태 변경 콜백 */
+    UFUNCTION()
+    void OnCoverStateChanged(ESimpleCoverState NewState);
+
+    /** 커버 카메라 오프셋 갱신 */
+    UFUNCTION()
+    void OnCoverCameraOffsetUpdated(FVector Offset);
+
 private:
     /** 자동사격 타이머 */
     FTimerHandle AutomaticFireHandle;
 
     /** 에임 여부 */
     bool bIsAiming;
+
+    /** 커버 카메라 오프셋 */
+    FVector CoverCameraOffset;
 
 public:
     /** CameraBoom 참조 */
