@@ -11,13 +11,12 @@ struct FInputActionValue;
 class USpringArmComponent;
 class UCameraComponent;
 class USceneComponent;
-class UUserWidget;
 class UNiagaraSystem;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
 
 /**
- * 기본 TPS 플레이어의 카메라/이동/점프만을 사용한 더미 박스 플레이어
+ * 기본 TPS ?�레?�어??카메???�동/?�프만을 ?�용???��? 박스 ?�레?�어
  */
 UCLASS()
 class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter
@@ -36,11 +35,11 @@ public:
     virtual void Jump() override;
 
 protected:
-    /** 카메라 붐: 플레이어 뒤에서 카메라를 배치 */
+    /** 카메??�? ?�레?�어 ?�에??카메?��? 배치 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     USpringArmComponent* CameraBoom;
 
-    /** 팔로우 카메라 */
+    /** ?�로??카메??*/
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     UCameraComponent* FollowCamera;
 
@@ -48,155 +47,151 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
     UCoverControllerComponent* CoverController;
 
-    /** 커버 카메라 헬퍼 */
+    /** 커버 카메???�퍼 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
     UCoverCameraComponent* CoverCamera;
 
-    /** 기본 카메라 거리 */
+    /** 기본 카메??거리 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float DefaultCameraArmLength;
 
-    /** 기본 카메라 소켓 오프셋 */
+    /** 기본 카메???�켓 ?�프??*/
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     FVector DefaultCameraSocketOffset;
 
-    /** 에임 시 카메라 거리 */
+    /** ?�임 ??카메??거리 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float AimingCameraArmLength;
 
-    /** 에임 시 카메라 소켓 오프셋 */
+    /** ?�임 ??카메???�켓 ?�프??*/
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     FVector AimingCameraSocketOffset;
 
-    /** 카메라 보간 속도 */
+    /** 카메??보간 ?�도 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float CameraInterpSpeed;
 
-    /** 기본 입력 매핑 컨텍스트 */
+    /** 기본 ?�력 매핑 컨텍?�트 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputMappingContext* DefaultMappingContext;
 
-    /** 이동 입력 액션 */
+    /** ?�동 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* MoveAction;
 
-    /** 카메라 회전 입력 액션 */
+    /** 카메???�전 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* LookAction;
 
-    /** 점프 입력 액션 */
+    /** ?�프 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* JumpAction;
 
-    /** 에임 입력 액션 */
+    /** ?�임 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* AimAction;
 
-    /** 커버 입력 액션 */
+    /** 커버 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* CoverAction;
 
-    /** 발사 입력 액션 */
+    /** 발사 ?�력 ?�션 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* FireAction;
 
-    /** 기본 걷기 속도 */
+    /** 기본 걷기 ?�도 */
     UPROPERTY(EditDefaultsOnly, Category = "Movement")
     float DefaultWalkSpeed;
 
-    /** 탄환 스폰 지점 */
+    /** ?�환 ?�폰 지??*/
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
     USceneComponent* ProjectileSpawnPoint;
 
-    /** 발사할 탄환 클래스 */
+    /** 발사???�환 ?�래??*/
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     TSubclassOf<AActor> ProjectileClass;
 
-    /** 발사 이펙트 */
+    /** 발사 ?�펙??*/
     UPROPERTY(EditAnywhere, Category = "Combat")
     UNiagaraSystem* FireEffect;
 
-    /** 카메라 에임 트레이스 거리 */
+    /** 카메???�임 ?�레?�스 거리 */
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float CameraAimTraceDistance;
 
-    /** 발사 간격(자동 사격) */
+    /** 발사 간격(?�동 ?�격) */
     UPROPERTY(EditAnywhere, Category = "Combat")
     float TimeBetweenShots;
 
-    /** 스폰할 무기 BP */
+    /** ?�폰??무기 BP */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     TSubclassOf<AActor> WeaponBlueprint;
 
-    /** 무기 장착 소켓 */
+    /** 무기 ?�착 ?�켓 */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     FName WeaponSocketName;
 
-    /** 스폰된 무기 참조 */
+    /** ?�폰??무기 참조 */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     AActor* SpawnedWeapon;
 
-    /** HUD 위젯 클래스 (미지정 시 기본 CombatStateWidget 사용) */
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> CombatStateWidgetClass;
-
-    /** 커버 탈출 임계값 */
+    /** 커버 ?�출 ?�계�?*/
     UPROPERTY(EditDefaultsOnly, Category = "Cover")
     float CoverExitForwardThreshold;
 
 protected:
-    /** 이동 입력 처리 */
+    /** ?�동 ?�력 처리 */
     void Move(const FInputActionValue& Value);
 
-    /** 카메라 회전 입력 처리 */
+    /** 카메???�전 ?�력 처리 */
     void Look(const FInputActionValue& Value);
 
-    /** 에임 시작 */
+    /** ?�임 ?�작 */
     void AimStarted();
 
-    /** 에임 종료 */
+    /** ?�임 종료 */
     void AimStopped();
 
-    /** 발사 시작 */
+    /** 발사 ?�작 */
     void StartFire();
 
     /** 발사 종료 */
     void StopFire();
 
-    /** 실제 발사 */
+    /** ?�제 발사 */
     void Fire();
 
-    /** 카메라 기준 조준 방향 계산 */
+    /** 카메??기�? 조�? 방향 계산 */
     FVector CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint);
 
-    /** 카메라 파라미터 업데이트 */
+    /** 카메???�라미터 ?�데?�트 */
     void UpdateCamera(float DeltaTime);
 
-    /** 회전 플래그 적용 */
+    /** ?�전 ?�래�??�용 */
     void ApplyRotationSettings();
 
-    /** 커버 입력 처리 */
+    /** 커버 ?�력 처리 */
     void HandleCoverAction();
 
-    /** 커버 여부 확인 */
+    /** 커버 ?��? ?�인 */
     bool IsInCover() const;
 
-    /** 커버 상태 변경 콜백 */
+    /** 커버 ?�태 변�?콜백 */
     UFUNCTION()
     void OnCoverStateChanged(ESimpleCoverState NewState);
 
-    /** 커버 카메라 오프셋 갱신 */
+    /** 커버 카메???�프??갱신 */
     UFUNCTION()
     void OnCoverCameraOffsetUpdated(FVector Offset);
 
 private:
-    /** 자동사격 타이머 */
+    /** ?�동?�격 ?�?�머 */
     FTimerHandle AutomaticFireHandle;
 
-    /** 에임 여부 */
+    /** ?�임 ?��? */
     bool bIsAiming;
 
-    /** 커버 카메라 오프셋 */
+    /** 커버 카메???�프??*/
     FVector CoverCameraOffset;
 
 public:
@@ -206,3 +201,4 @@ public:
     /** FollowCamera 참조 */
     FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
+

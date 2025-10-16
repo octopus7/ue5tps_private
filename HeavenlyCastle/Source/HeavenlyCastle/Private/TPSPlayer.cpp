@@ -14,9 +14,6 @@
 #include "Components/MeshComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Blueprint/UserWidget.h"
-#include "CombatStateWidget.h"
-#include "UI/UISessionSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 #include "ThrowableGrenade.h"
 #include "Cover/Runtime/CoverControllerComponent.h"
@@ -124,8 +121,6 @@ void ATPSPlayer::BeginPlay()
     MaxAmmo = FMath::Max(0, MaxAmmo);
     const int32 ClampedStart = FMath::Max(0, StartingAmmo);
     CurrentAmmo = bInfiniteAmmo ? MaxAmmo : FMath::Clamp(ClampedStart, 0, MaxAmmo);
-    CoverAvailabilityElapsed = 0.f;
-    bCachedCoverAvailable = CoverController ? CoverController->IsCoverAvailable() : false;
 
 	// Set initial camera boom properties
 	CameraBoom->TargetArmLength = DefaultCameraArmLength;
@@ -176,7 +171,6 @@ void ATPSPlayer::BeginPlay()
 	{
 		CoverController->OnStateChanged.AddDynamic(this, &ATPSPlayer::OnCoverStateChanged);
 		CoverController->SetAiming(bIsAiming);
-        bCachedCoverAvailable = CoverController->IsCoverAvailable();
 	}
 
 	if (CoverCamera)
@@ -188,30 +182,6 @@ void ATPSPlayer::BeginPlay()
 	{
 		HealthComponent->OnHealthChanged.AddDynamic(this, &ATPSPlayer::OnHealthChanged);
 	}
-
-	// Ensure UI via subsystem and push initial state/health
-	if (APlayerController* PC = Cast<APlayerController>(Controller))
-	{
-		if (ULocalPlayer* LP = PC->GetLocalPlayer())
-		{
-			if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
-			{
-				// Create HUD via subsystem using assigned class as fallback
-				TSubclassOf<UUserWidget> HUDClassToUse = CombatStateWidgetClass ? CombatStateWidgetClass : TSubclassOf<UUserWidget>(UCombatStateWidget::StaticClass());
-				UIS->EnsureHUDWithClass(PC, HUDClassToUse);
-				UIS->PushCombatState(CombatState);
-				if (HealthComponent)
-				{
-					UIS->PushHealth(HealthComponent->GetHealth(), HealthComponent->GetDefaultHealth());
-				}
-                UIS->PushAmmo(CurrentAmmo, bInfiniteAmmo ? -1 : MaxAmmo);
-                UIS->PushCoverAvailability(bCachedCoverAvailable);
-			}
-		}
-	}
-
-	UpdateCombatStateUI();
-
 	// Quick sanity hints for grenade setup
 	if (!GrenadeClass)
 	{
@@ -320,7 +290,6 @@ void ATPSPlayer::Tick(float DeltaTime)
 
 	// Removed SPD on-screen movement debug overlay
 
-    EvaluateCoverAvailability(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -675,14 +644,6 @@ bool ATPSPlayer::IsInCover() const
 void ATPSPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 {
     UpdateRotationSettings();
-
-    const bool bAvailableNow = CoverController ? CoverController->IsCoverAvailable() : false;
-    if (bAvailableNow != bCachedCoverAvailable)
-    {
-        bCachedCoverAvailable = bAvailableNow;
-        PushCoverAvailabilityToUI(bCachedCoverAvailable);
-    }
-    CoverAvailabilityElapsed = 0.f;
 }
 
 void ATPSPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
@@ -875,75 +836,6 @@ void ATPSPlayer::OnHealthChanged(UHealthComponent* OwningHealthComp, float Healt
     {
         OnDeath();
     }
-
-    // Push health to UI subsystem
-    if (APlayerController* PC = Cast<APlayerController>(Controller))
-    {
-        if (ULocalPlayer* LP = PC->GetLocalPlayer())
-        {
-            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
-            {
-                const float MaxHealth = HealthComponent ? HealthComponent->GetDefaultHealth() : Health;
-                UIS->PushHealth(Health, MaxHealth);
-            }
-        }
-    }
-}
-
-void ATPSPlayer::PushAmmoToUI()
-{
-    if (APlayerController* PC = Cast<APlayerController>(Controller))
-    {
-        if (ULocalPlayer* LP = PC->GetLocalPlayer())
-        {
-            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
-            {
-                const int32 MaxForUI = bInfiniteAmmo ? -1 : MaxAmmo;
-                UIS->PushAmmo(CurrentAmmo, MaxForUI);
-            }
-        }
-    }
-}
-
-void ATPSPlayer::PushCoverAvailabilityToUI(bool bAvailable)
-{
-    if (APlayerController* PC = Cast<APlayerController>(Controller))
-    {
-        if (ULocalPlayer* LP = PC->GetLocalPlayer())
-        {
-            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
-            {
-                UIS->PushCoverAvailability(bAvailable);
-            }
-        }
-    }
-}
-
-void ATPSPlayer::EvaluateCoverAvailability(float DeltaSeconds)
-{
-    if (!CoverController)
-    {
-        if (bCachedCoverAvailable)
-        {
-            bCachedCoverAvailable = false;
-            PushCoverAvailabilityToUI(false);
-        }
-        return;
-    }
-
-    CoverAvailabilityElapsed += DeltaSeconds;
-    if (CoverAvailabilityElapsed < CoverAvailabilityPollInterval)
-    {
-        return;
-    }
-    CoverAvailabilityElapsed = 0.f;
-
-    const bool bAvailableNow = CoverController->IsCoverAvailable();
-    if (bAvailableNow != bCachedCoverAvailable)
-    {
-        bCachedCoverAvailable = bAvailableNow;
-        PushCoverAvailabilityToUI(bCachedCoverAvailable);
-    }
 }
 
 void ATPSPlayer::HandleOutOfAmmo()
@@ -954,14 +846,12 @@ void ATPSPlayer::HandleOutOfAmmo()
         bIsFiring = false;
         UpdateRotationSettings();
     }
-    PushAmmoToUI();
 }
 
 bool ATPSPlayer::ConsumeAmmo()
 {
     if (bInfiniteAmmo)
     {
-        PushAmmoToUI();
         return true;
     }
 
@@ -971,7 +861,6 @@ bool ATPSPlayer::ConsumeAmmo()
     }
 
     --CurrentAmmo;
-    PushAmmoToUI();
     return CurrentAmmo > 0;
 }
 
@@ -1076,7 +965,6 @@ void ATPSPlayer::HandleEquipAttach()
 {
     AttachWeaponToSocket(WeaponSocketName);
     CombatState = ECombatState::Armed;
-    UpdateCombatStateUI();
     ConfigureWeaponCollision();
 }
 
@@ -1092,7 +980,6 @@ void ATPSPlayer::HandleUnequipAttach()
     {
         CombatState = ECombatState::Unarmed;
     }
-    UpdateCombatStateUI();
     ConfigureWeaponCollision();
 
     // If we transitioned into ThrownReady, spawn/attach held grenade now
@@ -1100,47 +987,6 @@ void ATPSPlayer::HandleUnequipAttach()
     {
         OnEnterThrownReady();
     }
-}
-
-void ATPSPlayer::UpdateCombatStateUI()
-{
-	FString Label;
-	switch (CombatState)
-	{
-	case ECombatState::Armed: Label = TEXT("무장 (Armed)"); break;
-	case ECombatState::Unarmed: Label = TEXT("비무장 (Unarmed)"); break;
-	case ECombatState::ThrownReady: Label = TEXT("투척 준비 (Thrown)"); break;
-	case ECombatState::Equipping: Label = TEXT("무장 전환 중 (Equipping)"); break;
-	case ECombatState::Unequipping: Label = TEXT("비무장 전환 중 (Unequipping)"); break;
-	}
-
-    // Push state to UI subsystem
-    if (APlayerController* PC = Cast<APlayerController>(Controller))
-    {
-        if (ULocalPlayer* LP = PC->GetLocalPlayer())
-        {
-            if (UUISessionSubsystem* UIS = LP->GetSubsystem<UUISessionSubsystem>())
-            {
-                UIS->PushCombatState(CombatState);
-            }
-        }
-    }
-
-    // Back-compat: update legacy widget if still used
-    if (CombatStateWidgetInstance)
-    {
-        static const FName FuncName = FName("UpdateStateText");
-        if (CombatStateWidgetInstance->GetClass()->FindFunctionByName(FuncName))
-        {
-            struct FParams { FText InText; } Params{ FText::FromString(Label) };
-            CombatStateWidgetInstance->ProcessEvent(CombatStateWidgetInstance->FindFunction(FuncName), &Params);
-        }
-    }
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)this & 0xFFFF), 2.0f, FColor::Cyan, FString::Printf(TEXT("State: %s"), *Label));
-	}
 }
 
 void ATPSPlayer::RequestSetCombatState(ECombatState NewState)
@@ -1167,7 +1013,6 @@ case ECombatState::Armed:
 			GetMesh()->GetAnimInstance()->Montage_Play(EquipMontage);
 			CombatState = ECombatState::Equipping;
 			GetWorldTimerManager().SetTimer(TimerHandle_EquipAttach, this, &ATPSPlayer::HandleEquipAttach, EquipAttachDelay, false);
-			UpdateCombatStateUI();
 		}
 		else
 		{
@@ -1187,7 +1032,6 @@ case ECombatState::Armed:
 				GetMesh()->GetAnimInstance()->Montage_Play(UnequipMontage);
 				CombatState = ECombatState::Unequipping;
 				GetWorldTimerManager().SetTimer(TimerHandle_UnequipAttach, this, &ATPSPlayer::HandleUnequipAttach, UnequipAttachDelay, false);
-				UpdateCombatStateUI();
 			}
 			else
 			{
@@ -1202,7 +1046,6 @@ case ECombatState::Armed:
                 OnExitThrownReady();
             }
             CombatState = ECombatState::Unarmed;
-            UpdateCombatStateUI();
         }
         break;
 
@@ -1216,7 +1059,6 @@ case ECombatState::Armed:
         else
         {
             CombatState = ECombatState::ThrownReady;
-            UpdateCombatStateUI();
             OnEnterThrownReady();
         }
         break;
@@ -1433,3 +1275,5 @@ void ATPSPlayer::ThrowGrenade()
     }
     UE_LOG(LogTemp, Log, TEXT("ThrowGrenade(): State -> Unarmed"));
 }
+
+

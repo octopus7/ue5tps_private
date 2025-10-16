@@ -10,7 +10,6 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UAnimMontage;
-class UUserWidget;
 class AThrowableGrenade;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
@@ -306,9 +305,6 @@ private:
     UFUNCTION()
     void OnHealthChanged(UHealthComponent* OwningHealthComp, float Health, float HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 
-    void PushAmmoToUI();
-    void PushCoverAvailabilityToUI(bool bAvailable);
-    void EvaluateCoverAvailability(float DeltaSeconds);
     void HandleOutOfAmmo();
     bool ConsumeAmmo();
 
@@ -367,15 +363,6 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon|Drop")
     float WeaponDropUpImpulse = 120.f;
 
-    /** UI: simple widget hook */
-    UPROPERTY(EditDefaultsOnly, Category = "UI")
-    TSubclassOf<UUserWidget> CombatStateWidgetClass;
-
-    UPROPERTY()
-    UUserWidget* CombatStateWidgetInstance;
-
-    void UpdateCombatStateUI();
-
     /** Ensure attached weapon doesn't block the player or world while equipped/holstered */
     void ConfigureWeaponCollision();
 
@@ -418,16 +405,6 @@ protected:
 private:
     /** Cached offset provided by cover camera component */
     FVector CoverCameraOffset = FVector::ZeroVector;
-
-    /** Cached result of the most recent cover availability query */
-    bool bCachedCoverAvailable = false;
-
-    /** Time accumulator used to throttle cover availability polling */
-    float CoverAvailabilityElapsed = 0.f;
-
-    /** Polling interval (seconds) for cover availability updates */
-    UPROPERTY(EditDefaultsOnly, Category = "Cover|UI", meta = (ClampMin = "0.0"))
-    float CoverAvailabilityPollInterval = 0.15f;
 
     bool IsInCover() const;
 
