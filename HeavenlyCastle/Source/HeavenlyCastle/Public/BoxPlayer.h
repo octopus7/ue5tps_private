@@ -15,6 +15,7 @@ class UNiagaraSystem;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
 class UWidgetComponent;
+class UGameStateWidget;
 
 /**
  * ê¸°ë³¸ TPS ?Œë ˆ?´ì–´??ì¹´ë©”???´ë™/?í”„ë§Œì„ ?¬ìš©???”ë? ë°•ìŠ¤ ?Œë ˆ?´ì–´
@@ -190,6 +191,10 @@ protected:
     void OnCoverCameraOffsetUpdated(FVector Offset);
 
 private:
+    /** Game state widget instance */
+    UPROPERTY()
+    TObjectPtr<UGameStateWidget> GameStateWidgetInstance;
+
     /** ?ë™?¬ê²© ?€?´ë¨¸ */
     FTimerHandle AutomaticFireHandle;
 

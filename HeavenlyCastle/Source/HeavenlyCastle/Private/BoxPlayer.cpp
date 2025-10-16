@@ -18,6 +18,7 @@
 #include "Engine/LocalPlayer.h"
 #include "TPSPlayer.h"
 #include "UI/BoxPlayerStatusWidget.h"
+#include "UI/GameStateWidget.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -40,6 +41,7 @@ ABoxPlayer::ABoxPlayer()
     TimeBetweenShots = 0.1f;
     WeaponSocketName = FName("Weapon");
     SpawnedWeapon = nullptr;
+    GameStateWidgetInstance = nullptr;
     bIsAiming = false;
     CoverExitForwardThreshold = 0.6f;
     CoverCameraOffset = FVector::ZeroVector;
@@ -107,6 +109,15 @@ void ABoxPlayer::BeginPlay()
                 {
                     Subsystem->AddMappingContext(DefaultMappingContext, 0);
                 }
+            }
+        }
+
+        if (IsLocallyControlled() && !GameStateWidgetInstance)
+        {
+            GameStateWidgetInstance = CreateWidget<UGameStateWidget>(PlayerController, UGameStateWidget::StaticClass());
+            if (GameStateWidgetInstance)
+            {
+                GameStateWidgetInstance->AddToViewport();
             }
         }
     }
