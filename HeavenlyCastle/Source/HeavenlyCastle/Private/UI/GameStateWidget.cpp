@@ -8,6 +8,7 @@
 
 UGameStateWidget::UGameStateWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
+    , bIsCoverAvailable(false)
 {
 }
 
@@ -25,7 +26,7 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
         {
             CanvasSlot->SetAnchors(FAnchors(0.5f, 0.5f));
             CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-            CanvasSlot->SetPosition(FVector2D(0.f, 180.f)); // 화면 중앙에서 조금 아래에 배치
+            CanvasSlot->SetPosition(FVector2D(0.f, 180.f)); // Offset slightly below center
         }
     }
 
@@ -36,7 +37,8 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
         Container->AddChildToVerticalBox(TextWidget);
     }
 
-    StateText = TextWidget;
+    CoverStatusText = TextWidget;
+    RefreshText();
 
     return WidgetTree->RootWidget->TakeWidget();
 }
@@ -48,6 +50,37 @@ void UGameStateWidget::InitializeText(UTextBlock* InText)
         return;
     }
 
-    InText->SetText(FText::FromString(TEXT("GameState")));
+    InText->SetText(FText::GetEmpty());
     InText->SetJustification(ETextJustify::Center);
+    InText->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UGameStateWidget::SetCoverAvailable(bool bAvailable)
+{
+    if (bIsCoverAvailable == bAvailable)
+    {
+        return;
+    }
+
+    bIsCoverAvailable = bAvailable;
+    RefreshText();
+}
+
+void UGameStateWidget::RefreshText()
+{
+    if (!CoverStatusText)
+    {
+        return;
+    }
+
+    if (bIsCoverAvailable)
+    {
+        CoverStatusText->SetText(FText::FromString(TEXT("커버 가능")));
+        CoverStatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
+    }
+    else
+    {
+        CoverStatusText->SetText(FText::GetEmpty());
+        CoverStatusText->SetVisibility(ESlateVisibility::Collapsed);
+    }
 }

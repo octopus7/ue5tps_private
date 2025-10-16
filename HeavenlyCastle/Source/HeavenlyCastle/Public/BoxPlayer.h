@@ -30,6 +30,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
     virtual void Tick(float DeltaTime) override;
@@ -182,6 +183,9 @@ protected:
     /** Ïª§Î≤Ñ ?¨Î? ?ïÏù∏ */
     bool IsInCover() const;
 
+    /** Updates cover availability widget */
+    void UpdateCoverAvailability();
+
     /** Ïª§Î≤Ñ ?ÅÌÉú Î≥ÄÍ≤?ÏΩúÎ∞± */
     UFUNCTION()
     void OnCoverStateChanged(ESimpleCoverState NewState);
@@ -194,6 +198,9 @@ private:
     /** Game state widget instance */
     UPROPERTY()
     TObjectPtr<UGameStateWidget> GameStateWidgetInstance;
+
+    /** Cover widget polling timer */
+    FTimerHandle CoverWidgetUpdateHandle;
 
     /** ?êÎèô?¨Í≤© ?Ä?¥Î®∏ */
     FTimerHandle AutomaticFireHandle;

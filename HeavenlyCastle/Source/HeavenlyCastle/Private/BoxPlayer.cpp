@@ -118,6 +118,10 @@ void ABoxPlayer::BeginPlay()
             if (GameStateWidgetInstance)
             {
                 GameStateWidgetInstance->AddToViewport();
+
+                constexpr float CoverUpdateInterval = 0.25f;
+                GetWorldTimerManager().SetTimer(CoverWidgetUpdateHandle, this, &ABoxPlayer::UpdateCoverAvailability, CoverUpdateInterval, true, 0.0f);
+                UpdateCoverAvailability();
             }
         }
     }
@@ -154,6 +158,22 @@ void ABoxPlayer::BeginPlay()
         CoverCamera->OnCameraOffset.AddDynamic(this, &ABoxPlayer::OnCoverCameraOffsetUpdated);
     }
 
+}
+
+void ABoxPlayer::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(CoverWidgetUpdateHandle);
+    }
+
+    if (GameStateWidgetInstance)
+    {
+        GameStateWidgetInstance->RemoveFromParent();
+        GameStateWidgetInstance = nullptr;
+    }
+
+    Super::EndPlay(EndPlayReason);
 }
 
 void ABoxPlayer::Tick(float DeltaTime)
@@ -513,6 +533,17 @@ void ABoxPlayer::HandleCoverAction()
     {
         CoverController->SetAiming(bIsAiming);
     }
+}
+
+void ABoxPlayer::UpdateCoverAvailability()
+{
+    if (!IsLocallyControlled() || !GameStateWidgetInstance)
+    {
+        return;
+    }
+
+    const bool bAvailable = CoverController && CoverController->IsCoverAvailable();
+    GameStateWidgetInstance->SetCoverAvailable(bAvailable);
 }
 
 bool ABoxPlayer::IsInCover() const
