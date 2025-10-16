@@ -31,19 +31,19 @@ public:
     void OnViewModelsReady();
 
 private:
-    UPROPERTY()
+    UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category="UI", AllowPrivateAccess="true")
     UTextBlock* StateTextBlock = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category="UI", AllowPrivateAccess="true")
     UTextBlock* AmmoTextBlock = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category="UI", AllowPrivateAccess="true")
     UTextBlock* CrosshairTextBlock = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category="UI", AllowPrivateAccess="true")
     UTextBlock* CoverHintTextBlock = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category="UI", AllowPrivateAccess="true")
     UTextBlock* HealthValueTextBlock = nullptr;
 
 public:

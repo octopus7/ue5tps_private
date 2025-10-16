@@ -1,123 +1,30 @@
 #include "CombatStateWidget.h"
-#include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
+#include "Components/ProgressBar.h"
 // ViewModels
 #include "UI/CombatStateViewModel.h"
 #include "UI/HealthViewModel.h"
 #include "UI/AmmoViewModel.h"
 #include "UI/CoverViewModel.h"
-#include "Components/ProgressBar.h"
 
 void UCombatStateWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (!WidgetTree)
-	{
-		WidgetTree = NewObject<UWidgetTree>(this, UWidgetTree::StaticClass());
-	}
-
-	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
-	WidgetTree->RootWidget = Root;
-
-    //=== Top-right info (Ammo + Combat State)
-    UVerticalBox* TopRightBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-    Root->AddChild(TopRightBox);
-    if (UCanvasPanelSlot* TopRightSlot = Cast<UCanvasPanelSlot>(TopRightBox->Slot))
+    if (HealthVM)
     {
-        TopRightSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
-        TopRightSlot->SetAlignment(FVector2D(1.f, 0.f));
-        TopRightSlot->SetAutoSize(true);
-        TopRightSlot->SetPosition(FVector2D(-30.f, 30.f));
+        HandleHealthChanged(HealthVM->Current, HealthVM->Max);
     }
 
-    AmmoTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-    AmmoTextBlock->SetText(FText::FromString(TEXT("00 / 00")));
-    AmmoTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    AmmoTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-    AmmoTextBlock->SetJustification(ETextJustify::Right);
-    if (UVerticalBoxSlot* AmmoSlot = TopRightBox->AddChildToVerticalBox(AmmoTextBlock))
+    if (AmmoVM)
     {
-        AmmoSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+        HandleAmmoChanged(AmmoVM->Current, AmmoVM->Max);
     }
 
-    StateTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-    StateTextBlock->SetText(FText::FromString(TEXT("State")));
-    StateTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.9f, 0.1f, 1.f)));
-    StateTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-    StateTextBlock->SetJustification(ETextJustify::Right);
-    TopRightBox->AddChildToVerticalBox(StateTextBlock);
-
-    //=== Center crosshair + cover hint
-    UVerticalBox* CenterBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-    Root->AddChild(CenterBox);
-    if (UCanvasPanelSlot* CenterSlot = Cast<UCanvasPanelSlot>(CenterBox->Slot))
+    if (CoverVM)
     {
-        CenterSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
-        CenterSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-        CenterSlot->SetAutoSize(true);
+        HandleCoverAvailabilityChanged(CoverVM->bAvailable);
     }
-
-    CrosshairTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-    CrosshairTextBlock->SetText(FText::FromString(TEXT("+")));
-    {
-        FSlateFontInfo FontInfo = CrosshairTextBlock->GetFont();
-        FontInfo.Size = 36;
-        CrosshairTextBlock->SetFont(FontInfo);
-    }
-    CrosshairTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    CrosshairTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-    if (UVerticalBoxSlot* CrosshairSlot = CenterBox->AddChildToVerticalBox(CrosshairTextBlock))
-    {
-        CrosshairSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
-    }
-
-    CoverHintTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-    CoverHintTextBlock->SetText(FText::FromString(TEXT("COVER")));
-    {
-        FSlateFontInfo FontInfo = CoverHintTextBlock->GetFont();
-        FontInfo.Size = 18;
-        CoverHintTextBlock->SetFont(FontInfo);
-    }
-    CoverHintTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.9f, 0.2f, 1.f)));
-    CoverHintTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-    CoverHintTextBlock->SetJustification(ETextJustify::Center);
-    CoverHintTextBlock->SetVisibility(ESlateVisibility::Collapsed);
-    if (UVerticalBoxSlot* CoverSlot = CenterBox->AddChildToVerticalBox(CoverHintTextBlock))
-    {
-        CoverSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Center);
-    }
-
-    //=== Bottom-center health bar
-    UVerticalBox* BottomBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-    Root->AddChild(BottomBox);
-    if (UCanvasPanelSlot* BottomSlot = Cast<UCanvasPanelSlot>(BottomBox->Slot))
-    {
-        BottomSlot->SetAnchors(FAnchors(0.5f, 1.f, 0.5f, 1.f));
-        BottomSlot->SetAlignment(FVector2D(0.5f, 1.f));
-        BottomSlot->SetAutoSize(true);
-        BottomSlot->SetPosition(FVector2D(0.f, -80.f));
-    }
-
-    UProgressBar* HealthBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
-    HealthBar->SetPercent(1.f);
-    HPBar = HealthBar;
-    if (UVerticalBoxSlot* HealthBarSlot = BottomBox->AddChildToVerticalBox(HealthBar))
-    {
-        HealthBarSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
-        HealthBarSlot->SetHorizontalAlignment(EHorizontalAlignment::HAlign_Fill);
-    }
-
-    HealthValueTextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-    HealthValueTextBlock->SetText(FText::FromString(TEXT("100 / 100")));
-    HealthValueTextBlock->SetJustification(ETextJustify::Center);
-    HealthValueTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    HealthValueTextBlock->SetShadowOffset(FVector2D(1.f, 1.f));
-    BottomBox->AddChildToVerticalBox(HealthValueTextBlock);
 }
 
 void UCombatStateWidget::UpdateStateText(FText InText)
