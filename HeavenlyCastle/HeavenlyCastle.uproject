@@ -40,6 +40,10 @@
 		{
 			"Name": "GizmoFramework",
 			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
+			"Enabled": true
 		}
 	]
 }
