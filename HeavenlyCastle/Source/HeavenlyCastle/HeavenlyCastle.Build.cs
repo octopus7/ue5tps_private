@@ -16,6 +16,7 @@ public class HeavenlyCastle : ModuleRules
             "InputCore",
             "EnhancedInput",
             // Public headers reference these modules
+            "CommonUI",       // CommonActivatableWidget-based HUD manager
             "UMG",            // UUserWidget, Widget types in public UI headers
             "Niagara",        // UNiagaraSystem used in public headers
             "AIModule",       // AAIController in public headers
