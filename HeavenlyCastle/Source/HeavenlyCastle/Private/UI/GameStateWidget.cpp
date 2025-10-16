@@ -25,6 +25,7 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
         {
             CanvasSlot->SetAnchors(FAnchors(0.5f, 0.5f));
             CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            CanvasSlot->SetPosition(FVector2D(0.f, 180.f)); // 화면 중앙에서 조금 아래에 배치
         }
     }
 

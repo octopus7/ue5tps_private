@@ -25,6 +25,7 @@ TSharedRef<SWidget> UBoxPlayerStatusWidget::RebuildWidget()
         {
             CanvasSlot->SetAnchors(FAnchors(0.5f, 0.5f));
             CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            CanvasSlot->SetPosition(FVector2D(0.f, 180.f)); // 살짝 아래쪽에 배치
         }
     }
 
