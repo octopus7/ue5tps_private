@@ -14,6 +14,7 @@ class USceneComponent;
 class UNiagaraSystem;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
+class UWidgetComponent;
 
 /**
  * 기본 TPS ?�레?�어??카메???�동/?�프만을 ?�용???��? 박스 ?�레?�어
@@ -50,6 +51,10 @@ protected:
     /** 커버 카메???�퍼 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
     UCoverCameraComponent* CoverCamera;
+
+    /** Player status widget */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
+    UWidgetComponent* StatusWidgetComponent;
 
     /** 기본 카메??거리 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")

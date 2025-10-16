@@ -3,6 +3,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -16,6 +17,7 @@
 #include "Cover/Runtime/CoverCameraComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "TPSPlayer.h"
+#include "UI/BoxPlayerStatusWidget.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -69,6 +71,13 @@ ABoxPlayer::ABoxPlayer()
 
     ProjectileSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("ProjectileSpawnPoint"));
     ProjectileSpawnPoint->SetupAttachment(GetMesh());
+
+    StatusWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("StatusWidget"));
+    StatusWidgetComponent->SetupAttachment(RootComponent);
+    StatusWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+    StatusWidgetComponent->SetDrawSize(FVector2D(200.f, 50.f));
+    StatusWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+    StatusWidgetComponent->SetWidgetClass(UBoxPlayerStatusWidget::StaticClass());
 }
 
 void ABoxPlayer::BeginPlay()
