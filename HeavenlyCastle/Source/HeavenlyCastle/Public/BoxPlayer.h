@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Cover/CoverTypes.h"
 #include "Weapon/AmmoTypes.h"
+#include "Weapon/AmmoConsumerInterface.h"
 #include "BoxPlayer.generated.h"
 
 class UInputMappingContext;
@@ -22,7 +23,7 @@ class UGameStateWidget;
  * 湲곕낯 TPS ?뚮젅?댁뼱??移대찓???대룞/?먰봽留뚯쓣 ?ъ슜???붾? 諛뺤뒪 ?뚮젅?댁뼱
  */
 UCLASS()
-class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter
+class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter, public IAmmoConsumerInterface
 {
     GENERATED_BODY()
 
@@ -177,6 +178,8 @@ protected:
     /** Reload input handler */
     void ReloadWeapon();
 
+    virtual int32 AddAmmoToInventory_Implementation(int32 Amount) override;
+
     /** ?ㅼ젣 諛쒖궗 */
     void Fire();
 
@@ -237,4 +240,5 @@ public:
     /** FollowCamera 李몄“ */
     FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
+
 

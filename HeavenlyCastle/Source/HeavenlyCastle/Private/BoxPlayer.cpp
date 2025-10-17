@@ -385,6 +385,16 @@ void ABoxPlayer::ReloadWeapon()
     UpdateAmmoUI();
 }
 
+int32 ABoxPlayer::AddAmmoToInventory_Implementation(int32 Amount)
+{
+    const int32 Used = AmmoState.AddReserveAmmo(Amount);
+    if (Used > 0)
+    {
+        UpdateAmmoUI();
+    }
+    return Used;
+}
+
 void ABoxPlayer::Fire()
 {
     if (!ProjectileClass)

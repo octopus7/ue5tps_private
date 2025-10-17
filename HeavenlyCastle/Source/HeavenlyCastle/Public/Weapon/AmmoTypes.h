@@ -15,7 +15,7 @@ struct FAmmoConfig
     int32 StartingMagazineAmmo = 30;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 MaxReserveAmmo = 60;
+    int32 MaxReserveAmmo = 300;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
     int32 StartingReserveAmmo = 60;
@@ -34,6 +34,10 @@ public:
     bool ConsumeRound();
 
     bool Reload();
+
+    int32 AddReserveAmmo(int32 Amount);
+
+    int32 GetAvailableReserveSpace() const;
 
     int32 GetMagazineAmmo() const { return CurrentMagazineAmmo; }
 

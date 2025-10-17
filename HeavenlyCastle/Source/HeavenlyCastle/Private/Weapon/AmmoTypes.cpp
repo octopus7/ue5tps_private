@@ -77,3 +77,39 @@ bool FAmmoState::Reload()
     CurrentReserveAmmo -= AmmoToLoad;
     return true;
 }
+
+int32 FAmmoState::AddReserveAmmo(int32 Amount)
+{
+    if (Amount <= 0)
+    {
+        return 0;
+    }
+
+    if (Config.bInfiniteAmmo)
+    {
+        const int32 Space = Config.MaxReserveAmmo - CurrentReserveAmmo;
+        const int32 Used = Space > 0 ? FMath::Min(Amount, Space) : 0;
+        CurrentReserveAmmo = Config.MaxReserveAmmo;
+        return Used;
+    }
+
+    const int32 Space = FMath::Max(0, Config.MaxReserveAmmo - CurrentReserveAmmo);
+    if (Space <= 0)
+    {
+        return 0;
+    }
+
+    const int32 Used = FMath::Min(Amount, Space);
+    CurrentReserveAmmo += Used;
+    return Used;
+}
+
+int32 FAmmoState::GetAvailableReserveSpace() const
+{
+    if (Config.bInfiniteAmmo)
+    {
+        return MAX_int32;
+    }
+
+    return FMath::Max(0, Config.MaxReserveAmmo - CurrentReserveAmmo);
+}

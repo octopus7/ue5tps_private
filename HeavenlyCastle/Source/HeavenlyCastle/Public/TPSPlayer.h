@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "Cover/CoverTypes.h"
 #include "Weapon/AmmoTypes.h"
+#include "Weapon/AmmoConsumerInterface.h"
 #include "TPSPlayer.generated.h"
 
 class UHealthComponent;
@@ -27,7 +28,7 @@ enum class ECombatState : uint8
 };
 
 UCLASS()
-class HEAVENLYCASTLE_API ATPSPlayer : public ACharacter
+class HEAVENLYCASTLE_API ATPSPlayer : public ACharacter, public IAmmoConsumerInterface
 {
     GENERATED_BODY()
 
@@ -381,6 +382,8 @@ public:
 
     /** Perform the actual throw (spawn and launch grenade) */
     void ThrowGrenade();
+
+    virtual int32 AddAmmoToInventory_Implementation(int32 Amount) override;
 
     /************************************************************************
     * Debug

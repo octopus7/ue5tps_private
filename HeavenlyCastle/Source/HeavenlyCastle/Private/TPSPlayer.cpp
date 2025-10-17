@@ -632,6 +632,16 @@ void ATPSPlayer::ReloadWeapon()
     UpdateAmmoUI();
 }
 
+int32 ATPSPlayer::AddAmmoToInventory_Implementation(int32 Amount)
+{
+    const int32 Used = AmmoState.AddReserveAmmo(Amount);
+    if (Used > 0)
+    {
+        UpdateAmmoUI();
+    }
+    return Used;
+}
+
 void ATPSPlayer::HandleCoverAction()
 {
     if (!CoverController)
