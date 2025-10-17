@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Cover/CoverTypes.h"
+#include "Weapon/AmmoTypes.h"
 #include "TPSPlayer.generated.h"
 
 class UHealthComponent;
@@ -266,33 +267,12 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon")
 	AActor* SpawnedWeapon;
 
-    /** Maximum rounds that fit in the magazine */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 MagazineCapacity = 30;
-
-    /** Magazine rounds available on spawn */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 StartingMagazineAmmo = 30;
-
-    /** Maximum spare rounds the player can carry */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 MaxReserveAmmo = 60;
-
-    /** Spare rounds carried on spawn */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 StartingReserveAmmo = 60;
-
-    /** When true, ammo is not consumed while firing (debug/testing) */
+    /** Ammo configuration shared with BoxPlayer */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
-    bool bInfiniteAmmo = false;
+    FAmmoConfig AmmoConfig;
 
-    /** Current rounds available for firing */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
-    int32 CurrentMagazineAmmo = 0;
-
-    /** Current spare rounds carried */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
-    int32 CurrentReserveAmmo = 0;
+    /** Runtime ammo state */
+    FAmmoState AmmoState;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;

@@ -120,22 +120,7 @@ void ATPSPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
-    MagazineCapacity = FMath::Max(0, MagazineCapacity);
-    MaxReserveAmmo = FMath::Max(0, MaxReserveAmmo);
-    StartingMagazineAmmo = FMath::Clamp(StartingMagazineAmmo, 0, MagazineCapacity);
-    StartingReserveAmmo = FMath::Clamp(StartingReserveAmmo, 0, MaxReserveAmmo);
-
-    if (bInfiniteAmmo)
-    {
-        CurrentMagazineAmmo = MagazineCapacity;
-        CurrentReserveAmmo = MaxReserveAmmo;
-    }
-    else
-    {
-        CurrentMagazineAmmo = StartingMagazineAmmo;
-        CurrentReserveAmmo = StartingReserveAmmo;
-    }
-
+    AmmoState.Initialize(AmmoConfig);
     UpdateAmmoUI();
 
 	// Set initial camera boom properties
@@ -557,7 +542,7 @@ void ATPSPlayer::StartFire()
 		}
 	}
 
-    if (!bInfiniteAmmo && CurrentMagazineAmmo <= 0)
+    if (!AmmoState.CanFire())
     {
         HandleOutOfAmmo();
         return;
@@ -632,22 +617,7 @@ void ATPSPlayer::ReloadWeapon()
         return;
     }
 
-    if (bInfiniteAmmo)
-    {
-        CurrentMagazineAmmo = MagazineCapacity;
-        CurrentReserveAmmo = MaxReserveAmmo;
-        UpdateAmmoUI();
-        return;
-    }
-
-    if (CurrentMagazineAmmo >= MagazineCapacity || CurrentReserveAmmo <= 0)
-    {
-        return;
-    }
-
-    const int32 Needed = MagazineCapacity - CurrentMagazineAmmo;
-    const int32 AmmoToLoad = FMath::Min(Needed, CurrentReserveAmmo);
-    if (AmmoToLoad <= 0)
+    if (!AmmoState.Reload())
     {
         return;
     }
@@ -658,9 +628,6 @@ void ATPSPlayer::ReloadWeapon()
         bIsFiring = false;
         UpdateRotationSettings();
     }
-
-    CurrentMagazineAmmo += AmmoToLoad;
-    CurrentReserveAmmo -= AmmoToLoad;
 
     UpdateAmmoUI();
 }
@@ -757,7 +724,7 @@ void ATPSPlayer::Fire()
 		return;
 	}
 
-	if (!bInfiniteAmmo && CurrentMagazineAmmo <= 0)
+	if (!AmmoState.CanFire())
 	{
 		HandleOutOfAmmo();
 		return;
@@ -929,32 +896,16 @@ void ATPSPlayer::HandleOutOfAmmo()
 
 bool ATPSPlayer::ConsumeAmmo()
 {
-    if (bInfiniteAmmo)
-    {
-        if (CurrentMagazineAmmo < MagazineCapacity)
-        {
-            CurrentMagazineAmmo = MagazineCapacity;
-        }
-        UpdateAmmoUI();
-        return true;
-    }
-
-    if (CurrentMagazineAmmo <= 0)
-    {
-        UpdateAmmoUI();
-        return false;
-    }
-
-    --CurrentMagazineAmmo;
+    const bool bHasAmmoRemaining = AmmoState.ConsumeRound();
     UpdateAmmoUI();
-    return CurrentMagazineAmmo > 0;
+    return bHasAmmoRemaining;
 }
 
 void ATPSPlayer::UpdateAmmoUI()
 {
     if (GameStateWidgetInstance)
     {
-        GameStateWidgetInstance->SetAmmoCounts(CurrentMagazineAmmo, CurrentReserveAmmo);
+        GameStateWidgetInstance->SetAmmoCounts(AmmoState.GetMagazineAmmo(), AmmoState.GetReserveAmmo());
     }
 }
 

@@ -1,8 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Cover/CoverTypes.h"
+#include "Weapon/AmmoTypes.h"
 #include "BoxPlayer.generated.h"
 
 class UInputMappingContext;
@@ -18,7 +19,7 @@ class UWidgetComponent;
 class UGameStateWidget;
 
 /**
- * 기본 TPS ?�레?�어??카메???�동/?�프만을 ?�용???��? 박스 ?�레?�어
+ * 湲곕낯 TPS ?뚮젅?댁뼱??移대찓???대룞/?먰봽留뚯쓣 ?ъ슜???붾? 諛뺤뒪 ?뚮젅?댁뼱
  */
 UCLASS()
 class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter
@@ -38,19 +39,19 @@ public:
     virtual void Jump() override;
 
 protected:
-    /** 카메??�? ?�레?�어 ?�에??카메?��? 배치 */
+    /** 移대찓??遺? ?뚮젅?댁뼱 ?ㅼ뿉??移대찓?쇰? 諛곗튂 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     USpringArmComponent* CameraBoom;
 
-    /** ?�로??카메??*/
+    /** ?붾줈??移대찓??*/
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     UCameraComponent* FollowCamera;
 
-    /** 커버 컨트롤러 */
+    /** 而ㅻ쾭 而⑦듃濡ㅻ윭 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
     UCoverControllerComponent* CoverController;
 
-    /** 커버 카메???�퍼 */
+    /** 而ㅻ쾭 移대찓???ы띁 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cover", meta = (AllowPrivateAccess = "true"))
     UCoverCameraComponent* CoverCamera;
 
@@ -58,139 +59,150 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
     UWidgetComponent* StatusWidgetComponent;
 
-    /** 기본 카메??거리 */
+    /** 湲곕낯 移대찓??嫄곕━ */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float DefaultCameraArmLength;
 
-    /** 기본 카메???�켓 ?�프??*/
+    /** 湲곕낯 移대찓???뚯폆 ?ㅽ봽??*/
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     FVector DefaultCameraSocketOffset;
 
-    /** ?�임 ??카메??거리 */
+    /** ?먯엫 ??移대찓??嫄곕━ */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float AimingCameraArmLength;
 
-    /** ?�임 ??카메???�켓 ?�프??*/
+    /** ?먯엫 ??移대찓???뚯폆 ?ㅽ봽??*/
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     FVector AimingCameraSocketOffset;
 
-    /** 카메??보간 ?�도 */
+    /** 移대찓??蹂닿컙 ?띾룄 */
     UPROPERTY(EditDefaultsOnly, Category = "Camera")
     float CameraInterpSpeed;
 
-    /** 기본 ?�력 매핑 컨텍?�트 */
+    /** 湲곕낯 ?낅젰 留ㅽ븨 而⑦뀓?ㅽ듃 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputMappingContext* DefaultMappingContext;
 
-    /** ?�동 ?�력 ?�션 */
+    /** ?대룞 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* MoveAction;
 
-    /** 카메???�전 ?�력 ?�션 */
+    /** 移대찓???뚯쟾 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* LookAction;
 
-    /** ?�프 ?�력 ?�션 */
+    /** ?먰봽 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* JumpAction;
 
-    /** ?�임 ?�력 ?�션 */
+    /** ?먯엫 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* AimAction;
 
-    /** 커버 ?�력 ?�션 */
+    /** 而ㅻ쾭 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* CoverAction;
 
-    /** 발사 ?�력 ?�션 */
+    /** Reload input action */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* ReloadAction;
+
+    /** 諛쒖궗 ?낅젰 ?≪뀡 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* FireAction;
 
-    /** 기본 걷기 ?�도 */
+    /** 湲곕낯 嫄룰린 ?띾룄 */
     UPROPERTY(EditDefaultsOnly, Category = "Movement")
     float DefaultWalkSpeed;
 
-    /** ?�환 ?�폰 지??*/
+    /** ?꾪솚 ?ㅽ룿 吏??*/
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
     USceneComponent* ProjectileSpawnPoint;
 
-    /** 발사???�환 ?�래??*/
+    /** 諛쒖궗???꾪솚 ?대옒??*/
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     TSubclassOf<AActor> ProjectileClass;
 
-    /** 발사 ?�펙??*/
+    /** 諛쒖궗 ?댄럺??*/
     UPROPERTY(EditAnywhere, Category = "Combat")
     UNiagaraSystem* FireEffect;
 
-    /** 카메???�임 ?�레?�스 거리 */
+    /** 移대찓???먯엫 ?몃젅?댁뒪 嫄곕━ */
     UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float CameraAimTraceDistance;
 
-    /** 발사 간격(?�동 ?�격) */
+    /** 諛쒖궗 媛꾧꺽(?먮룞 ?ш꺽) */
     UPROPERTY(EditAnywhere, Category = "Combat")
     float TimeBetweenShots;
 
-    /** ?�폰??무기 BP */
+    /** ?ㅽ룿??臾닿린 BP */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     TSubclassOf<AActor> WeaponBlueprint;
 
-    /** 무기 ?�착 ?�켓 */
+    /** 臾닿린 ?μ갑 ?뚯폆 */
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     FName WeaponSocketName;
 
-    /** ?�폰??무기 참조 */
+    /** Ammo configuration shared with TPS player */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
+    FAmmoConfig AmmoConfig;
+
+    /** ?ㅽ룿??臾닿린 李몄“ */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
     AActor* SpawnedWeapon;
 
-    /** 커버 ?�출 ?�계�?*/
+    /** 而ㅻ쾭 ?덉텧 ?꾧퀎媛?*/
     UPROPERTY(EditDefaultsOnly, Category = "Cover")
     float CoverExitForwardThreshold;
 
 protected:
-    /** ?�동 ?�력 처리 */
+    /** ?대룞 ?낅젰 泥섎━ */
     void Move(const FInputActionValue& Value);
 
-    /** 카메???�전 ?�력 처리 */
+    /** 移대찓???뚯쟾 ?낅젰 泥섎━ */
     void Look(const FInputActionValue& Value);
 
-    /** ?�임 ?�작 */
+    /** ?먯엫 ?쒖옉 */
     void AimStarted();
 
-    /** ?�임 종료 */
+    /** ?먯엫 醫낅즺 */
     void AimStopped();
 
-    /** 발사 ?�작 */
+    /** 諛쒖궗 ?쒖옉 */
     void StartFire();
 
-    /** 발사 종료 */
+    /** 諛쒖궗 醫낅즺 */
     void StopFire();
 
-    /** ?�제 발사 */
+    /** Reload input handler */
+    void ReloadWeapon();
+
+    /** ?ㅼ젣 諛쒖궗 */
     void Fire();
 
-    /** 카메??기�? 조�? 방향 계산 */
+    /** 移대찓??湲곗? 議곗? 諛⑺뼢 怨꾩궛 */
     FVector CalculateCameraAimDirection(const FVector& MuzzleLocation, FVector& OutAimPoint);
 
-    /** 카메???�라미터 ?�데?�트 */
+    /** 移대찓???뚮씪誘명꽣 ?낅뜲?댄듃 */
     void UpdateCamera(float DeltaTime);
 
-    /** ?�전 ?�래�??�용 */
+    /** ?뚯쟾 ?뚮옒洹??곸슜 */
     void ApplyRotationSettings();
 
-    /** 커버 ?�력 처리 */
+    /** 而ㅻ쾭 ?낅젰 泥섎━ */
     void HandleCoverAction();
 
-    /** 커버 ?��? ?�인 */
+    /** 而ㅻ쾭 ?щ? ?뺤씤 */
     bool IsInCover() const;
 
     /** Updates cover availability widget */
     void UpdateCoverAvailability();
 
-    /** 커버 ?�태 변�?콜백 */
+    /** 而ㅻ쾭 ?곹깭 蹂寃?肄쒕갚 */
     UFUNCTION()
     void OnCoverStateChanged(ESimpleCoverState NewState);
 
-    /** 커버 카메???�프??갱신 */
+    /** 而ㅻ쾭 移대찓???ㅽ봽??媛깆떊 */
     UFUNCTION()
     void OnCoverCameraOffsetUpdated(FVector Offset);
 
@@ -202,20 +214,27 @@ private:
     /** Cover widget polling timer */
     FTimerHandle CoverWidgetUpdateHandle;
 
-    /** ?�동?�격 ?�?�머 */
+    /** ?먮룞?ш꺽 ??대㉧ */
     FTimerHandle AutomaticFireHandle;
 
-    /** ?�임 ?��? */
+    /** ?먯엫 ?щ? */
     bool bIsAiming;
 
-    /** 커버 카메???�프??*/
+    /** 而ㅻ쾭 移대찓???ㅽ봽??*/
     FVector CoverCameraOffset;
 
+    /** Shared ammo runtime state */
+    FAmmoState AmmoState;
+
+    void UpdateAmmoUI();
+    void HandleOutOfAmmo();
+    bool ConsumeAmmo();
+
 public:
-    /** CameraBoom 참조 */
+    /** CameraBoom 李몄“ */
     FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 
-    /** FollowCamera 참조 */
+    /** FollowCamera 李몄“ */
     FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
 

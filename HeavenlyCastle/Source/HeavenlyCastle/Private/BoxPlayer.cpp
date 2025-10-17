@@ -1,4 +1,4 @@
-#include "BoxPlayer.h"
+﻿#include "BoxPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/MeshComponent.h"
@@ -86,6 +86,9 @@ void ABoxPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
+    AmmoState.Initialize(AmmoConfig);
+    UpdateAmmoUI();
+
     if (CameraBoom)
     {
         CameraBoom->TargetArmLength = DefaultCameraArmLength;
@@ -119,6 +122,8 @@ void ABoxPlayer::BeginPlay()
             {
                 GameStateWidgetInstance->AddToViewport();
 
+                UpdateAmmoUI();
+
                 constexpr float CoverUpdateInterval = 0.25f;
                 GetWorldTimerManager().SetTimer(CoverWidgetUpdateHandle, this, &ABoxPlayer::UpdateCoverAvailability, CoverUpdateInterval, true, 0.0f);
                 UpdateCoverAvailability();
@@ -144,7 +149,7 @@ void ABoxPlayer::BeginPlay()
     }
     else if (WeaponBlueprint)
     {
-        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: Weapon socket '%s'를 찾을 수 없습니다."), *WeaponSocketName.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: Weapon socket '%s'瑜?李얠쓣 ???놁뒿?덈떎."), *WeaponSocketName.ToString());
     }
 
     if (CoverController)
@@ -219,6 +224,11 @@ void ABoxPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
         {
             EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ABoxPlayer::StartFire);
             EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ABoxPlayer::StopFire);
+        }
+
+        if (ReloadAction)
+        {
+            EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ABoxPlayer::ReloadWeapon);
         }
     }
 }
@@ -345,9 +355,15 @@ void ABoxPlayer::StartFire()
         }
     }
 
+    if (!AmmoState.CanFire())
+    {
+        HandleOutOfAmmo();
+        return;
+    }
+
     Fire();
 
-    if (TimeBetweenShots > 0.f)
+    if (TimeBetweenShots > 0.f && AmmoState.CanFire())
     {
         GetWorldTimerManager().SetTimer(AutomaticFireHandle, this, &ABoxPlayer::Fire, TimeBetweenShots, true);
     }
@@ -358,11 +374,28 @@ void ABoxPlayer::StopFire()
     GetWorldTimerManager().ClearTimer(AutomaticFireHandle);
 }
 
+void ABoxPlayer::ReloadWeapon()
+{
+    if (!AmmoState.Reload())
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(AutomaticFireHandle);
+    UpdateAmmoUI();
+}
+
 void ABoxPlayer::Fire()
 {
     if (!ProjectileClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: ProjectileClass가 설정되지 않았습니다."));
+        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: ProjectileClass媛 ?ㅼ젙?섏? ?딆븯?듬땲??"));
+        return;
+    }
+
+    if (!AmmoState.CanFire())
+    {
+        HandleOutOfAmmo();
         return;
     }
 
@@ -424,6 +457,32 @@ void ABoxPlayer::Fire()
         {
             UE_LOG(LogTemp, Verbose, TEXT("BoxPlayer: Projectile speed %f"), ProjectileMovement->InitialSpeed);
         }
+    }
+
+    if (!ConsumeAmmo())
+    {
+        HandleOutOfAmmo();
+    }
+}
+
+bool ABoxPlayer::ConsumeAmmo()
+{
+    const bool bHasAmmoRemaining = AmmoState.ConsumeRound();
+    UpdateAmmoUI();
+    return bHasAmmoRemaining;
+}
+
+void ABoxPlayer::HandleOutOfAmmo()
+{
+    GetWorldTimerManager().ClearTimer(AutomaticFireHandle);
+    UpdateAmmoUI();
+}
+
+void ABoxPlayer::UpdateAmmoUI()
+{
+    if (GameStateWidgetInstance)
+    {
+        GameStateWidgetInstance->SetAmmoCounts(AmmoState.GetMagazineAmmo(), AmmoState.GetReserveAmmo());
     }
 }
 
@@ -566,6 +625,7 @@ bool ABoxPlayer::IsInCover() const
 void ABoxPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 {
     ApplyRotationSettings();
+    UpdateCoverAvailability();
 }
 
 void ABoxPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
