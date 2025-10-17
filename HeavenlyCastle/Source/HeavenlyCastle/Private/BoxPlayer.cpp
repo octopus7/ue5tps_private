@@ -19,6 +19,7 @@
 #include "TPSPlayer.h"
 #include "UI/BoxPlayerStatusWidget.h"
 #include "UI/GameStateWidget.h"
+#include "Camera/PlayerCameraTuningTypes.h"
 
 ABoxPlayer::ABoxPlayer()
 {
@@ -641,4 +642,68 @@ void ABoxPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 void ABoxPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
 {
     CoverCameraOffset = Offset;
+}
+
+FPlayerCameraTuningData ABoxPlayer::GetCameraTuningData_Implementation() const
+{
+    FPlayerCameraTuningData Data;
+    Data.CameraInterpSpeed = CameraInterpSpeed;
+
+    FPlayerCameraStateTuning DefaultState;
+    DefaultState.StateName = TEXT("Default");
+    DefaultState.TargetArmLength = DefaultCameraArmLength;
+    DefaultState.SocketOffset = DefaultCameraSocketOffset;
+    DefaultState.bEnabled = true;
+    Data.States.Add(DefaultState);
+
+    FPlayerCameraStateTuning AimingState;
+    AimingState.StateName = TEXT("Aiming");
+    AimingState.TargetArmLength = AimingCameraArmLength;
+    AimingState.SocketOffset = AimingCameraSocketOffset;
+    AimingState.bEnabled = true;
+    Data.States.Add(AimingState);
+
+    return Data;
+}
+
+void ABoxPlayer::ApplyCameraTuningData_Implementation(const FPlayerCameraTuningData& NewData)
+{
+    CameraInterpSpeed = NewData.CameraInterpSpeed;
+
+    for (const FPlayerCameraStateTuning& State : NewData.States)
+    {
+        if (!State.bEnabled)
+        {
+            continue;
+        }
+
+        if (State.StateName == TEXT("Default"))
+        {
+            DefaultCameraArmLength = State.TargetArmLength;
+            DefaultCameraSocketOffset = State.SocketOffset;
+        }
+        else if (State.StateName == TEXT("Aiming"))
+        {
+            AimingCameraArmLength = State.TargetArmLength;
+            AimingCameraSocketOffset = State.SocketOffset;
+        }
+    }
+
+    RefreshCameraFromTuning();
+}
+
+void ABoxPlayer::RefreshCameraFromTuning_Implementation()
+{
+    if (!CameraBoom)
+    {
+        return;
+    }
+
+    const bool bUseAimingValues = bIsAiming;
+    const float DesiredArmLength = bUseAimingValues ? AimingCameraArmLength : DefaultCameraArmLength;
+    FVector DesiredSocketOffset = bUseAimingValues ? AimingCameraSocketOffset : DefaultCameraSocketOffset;
+    DesiredSocketOffset += CoverCameraOffset;
+
+    CameraBoom->TargetArmLength = DesiredArmLength;
+    CameraBoom->SocketOffset = DesiredSocketOffset;
 }
