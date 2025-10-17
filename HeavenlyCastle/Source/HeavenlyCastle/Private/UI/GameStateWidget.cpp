@@ -1,10 +1,11 @@
 #include "UI/GameStateWidget.h"
 #include "Blueprint/WidgetTree.h"
-#include "Components/CanvasPanel.h"
-#include "Components/CanvasPanelSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Layout/Margin.h"
 
 UGameStateWidget::UGameStateWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -16,17 +17,17 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
 {
     WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
 
-    UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
-    WidgetTree->RootWidget = RootCanvas;
+    UOverlay* RootOverlay = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("RootOverlay"));
+    WidgetTree->RootWidget = RootOverlay;
 
     UVerticalBox* Container = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Container"));
-    if (RootCanvas)
+    if (RootOverlay)
     {
-        if (UCanvasPanelSlot* CanvasSlot = RootCanvas->AddChildToCanvas(Container))
+        if (UOverlaySlot* OverlaySlot = RootOverlay->AddChildToOverlay(Container))
         {
-            CanvasSlot->SetAnchors(FAnchors(0.5f, 0.5f));
-            CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-            CanvasSlot->SetPosition(FVector2D(0.f, 180.f)); // Offset slightly below center
+            OverlaySlot->SetHorizontalAlignment(HAlign_Center);
+            OverlaySlot->SetVerticalAlignment(VAlign_Center);
+            OverlaySlot->SetPadding(FMargin(0.f, 180.f, 0.f, 0.f)); // Offset slightly below center
         }
     }
 
