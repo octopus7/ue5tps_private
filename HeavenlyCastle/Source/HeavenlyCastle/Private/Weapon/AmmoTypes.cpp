@@ -1,6 +1,6 @@
 #include "Weapon/AmmoTypes.h"
 
-void FAmmoState::Initialize(const FAmmoConfig& InConfig)
+void FAmmoTypeState::Initialize(const FAmmoTypeConfig& InConfig)
 {
     Config = InConfig;
     Config.MagazineCapacity = FMath::Max(0, Config.MagazineCapacity);
@@ -20,12 +20,12 @@ void FAmmoState::Initialize(const FAmmoConfig& InConfig)
     }
 }
 
-bool FAmmoState::CanFire() const
+bool FAmmoTypeState::CanFire() const
 {
     return Config.bInfiniteAmmo || CurrentMagazineAmmo > 0;
 }
 
-bool FAmmoState::ConsumeRound()
+bool FAmmoTypeState::ConsumeRound()
 {
     if (Config.bInfiniteAmmo)
     {
@@ -51,7 +51,7 @@ bool FAmmoState::ConsumeRound()
     return CurrentMagazineAmmo > 0;
 }
 
-bool FAmmoState::Reload()
+bool FAmmoTypeState::Reload()
 {
     if (Config.bInfiniteAmmo)
     {
@@ -78,7 +78,7 @@ bool FAmmoState::Reload()
     return true;
 }
 
-int32 FAmmoState::AddReserveAmmo(int32 Amount)
+int32 FAmmoTypeState::AddReserveAmmo(int32 Amount)
 {
     if (Amount <= 0)
     {
@@ -104,7 +104,7 @@ int32 FAmmoState::AddReserveAmmo(int32 Amount)
     return Used;
 }
 
-int32 FAmmoState::GetAvailableReserveSpace() const
+int32 FAmmoTypeState::GetAvailableReserveSpace() const
 {
     if (Config.bInfiniteAmmo)
     {
@@ -112,4 +112,90 @@ int32 FAmmoState::GetAvailableReserveSpace() const
     }
 
     return FMath::Max(0, Config.MaxReserveAmmo - CurrentReserveAmmo);
+}
+
+void FAmmoInventory::Initialize(const TArray<FAmmoTypeConfig>& InConfigs)
+{
+    AmmoStates.Empty(InConfigs.Num());
+
+    for (const FAmmoTypeConfig& Config : InConfigs)
+    {
+        FAmmoTypeState& State = AmmoStates.FindOrAdd(Config.AmmoType);
+        State.Initialize(Config);
+    }
+}
+
+bool FAmmoInventory::HasType(EAmmoType AmmoType) const
+{
+    return AmmoStates.Contains(AmmoType);
+}
+
+FAmmoTypeState* FAmmoInventory::FindAmmoState(EAmmoType AmmoType)
+{
+    return AmmoStates.Find(AmmoType);
+}
+
+const FAmmoTypeState* FAmmoInventory::FindAmmoState(EAmmoType AmmoType) const
+{
+    return AmmoStates.Find(AmmoType);
+}
+
+bool FAmmoInventory::CanFire(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->CanFire() : false;
+}
+
+bool FAmmoInventory::ConsumeRound(EAmmoType AmmoType)
+{
+    FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->ConsumeRound() : false;
+}
+
+bool FAmmoInventory::Reload(EAmmoType AmmoType)
+{
+    FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->Reload() : false;
+}
+
+int32 FAmmoInventory::AddReserveAmmo(EAmmoType AmmoType, int32 Amount)
+{
+    FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->AddReserveAmmo(Amount) : 0;
+}
+
+int32 FAmmoInventory::GetAvailableReserveSpace(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->GetAvailableReserveSpace() : 0;
+}
+
+int32 FAmmoInventory::GetMagazineAmmo(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->GetMagazineAmmo() : 0;
+}
+
+int32 FAmmoInventory::GetReserveAmmo(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->GetReserveAmmo() : 0;
+}
+
+int32 FAmmoInventory::GetMagazineCapacity(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->GetMagazineCapacity() : 0;
+}
+
+int32 FAmmoInventory::GetMaxReserveAmmo(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->GetMaxReserveAmmo() : 0;
+}
+
+bool FAmmoInventory::HasInfiniteAmmo(EAmmoType AmmoType) const
+{
+    const FAmmoTypeState* State = AmmoStates.Find(AmmoType);
+    return State ? State->HasInfiniteAmmo() : false;
 }

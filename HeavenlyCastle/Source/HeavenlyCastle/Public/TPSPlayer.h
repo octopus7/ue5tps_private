@@ -272,12 +272,16 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon")
 	AActor* SpawnedWeapon;
 
-    /** Ammo configuration shared with BoxPlayer */
+    /** Ammo configurations shared with BoxPlayer */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
-    FAmmoConfig AmmoConfig;
+    TArray<FAmmoTypeConfig> AmmoTypeConfigs;
 
-    /** Runtime ammo state */
-    FAmmoState AmmoState;
+    /** Ammo type consumed by the equipped weapon (defaults to rifle). */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
+    EAmmoType EquippedAmmoType = EAmmoType::Rifle;
+
+    /** Runtime ammo inventory */
+    FAmmoInventory AmmoInventory;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;
@@ -387,7 +391,7 @@ public:
     /** Perform the actual throw (spawn and launch grenade) */
     void ThrowGrenade();
 
-    virtual int32 AddAmmoToInventory_Implementation(int32 Amount) override;
+    virtual int32 AddAmmoToInventory_Implementation(EAmmoType AmmoType, int32 Amount) override;
 
     /************************************************************************
     * Debug

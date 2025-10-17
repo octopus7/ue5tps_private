@@ -112,8 +112,15 @@ ATPSPlayer::ATPSPlayer()
 	// Debug
 	bMovementDebugEnabled = true; // default on to investigate speed issue; toggle via console if noisy
 
-	// Throwable defaults
-	HeldGrenade = nullptr;
+    // Throwable defaults
+    HeldGrenade = nullptr;
+
+    if (AmmoTypeConfigs.Num() == 0)
+    {
+        FAmmoTypeConfig DefaultConfig;
+        DefaultConfig.AmmoType = EAmmoType::Rifle;
+        AmmoTypeConfigs.Add(DefaultConfig);
+    }
 }
 
 // Called when the game starts or when spawned
@@ -121,7 +128,13 @@ void ATPSPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
-    AmmoState.Initialize(AmmoConfig);
+    AmmoInventory.Initialize(AmmoTypeConfigs);
+    if (!AmmoInventory.HasType(EquippedAmmoType))
+    {
+        const UEnum* AmmoEnum = StaticEnum<EAmmoType>();
+        const FString AmmoName = AmmoEnum ? AmmoEnum->GetNameStringByValue(static_cast<int64>(EquippedAmmoType)) : TEXT("Unknown");
+        UE_LOG(LogTemp, Warning, TEXT("TPSPlayer: Missing ammo config for %s ammo; counts will remain at zero."), *AmmoName);
+    }
     UpdateAmmoUI();
 
 	// Set initial camera boom properties
@@ -543,7 +556,7 @@ void ATPSPlayer::StartFire()
 		}
 	}
 
-    if (!AmmoState.CanFire())
+    if (!AmmoInventory.CanFire(EquippedAmmoType))
     {
         HandleOutOfAmmo();
         return;
@@ -618,7 +631,7 @@ void ATPSPlayer::ReloadWeapon()
         return;
     }
 
-    if (!AmmoState.Reload())
+    if (!AmmoInventory.Reload(EquippedAmmoType))
     {
         return;
     }
@@ -633,10 +646,10 @@ void ATPSPlayer::ReloadWeapon()
     UpdateAmmoUI();
 }
 
-int32 ATPSPlayer::AddAmmoToInventory_Implementation(int32 Amount)
+int32 ATPSPlayer::AddAmmoToInventory_Implementation(EAmmoType AmmoType, int32 Amount)
 {
-    const int32 Used = AmmoState.AddReserveAmmo(Amount);
-    if (Used > 0)
+    const int32 Used = AmmoInventory.AddReserveAmmo(AmmoType, Amount);
+    if (Used > 0 && AmmoType == EquippedAmmoType)
     {
         UpdateAmmoUI();
     }
@@ -735,7 +748,7 @@ void ATPSPlayer::Fire()
 		return;
 	}
 
-	if (!AmmoState.CanFire())
+	if (!AmmoInventory.CanFire(EquippedAmmoType))
 	{
 		HandleOutOfAmmo();
 		return;
@@ -907,7 +920,7 @@ void ATPSPlayer::HandleOutOfAmmo()
 
 bool ATPSPlayer::ConsumeAmmo()
 {
-    const bool bHasAmmoRemaining = AmmoState.ConsumeRound();
+    const bool bHasAmmoRemaining = AmmoInventory.ConsumeRound(EquippedAmmoType);
     UpdateAmmoUI();
     return bHasAmmoRemaining;
 }
@@ -916,7 +929,9 @@ void ATPSPlayer::UpdateAmmoUI()
 {
     if (GameStateWidgetInstance)
     {
-        GameStateWidgetInstance->SetAmmoCounts(AmmoState.GetMagazineAmmo(), AmmoState.GetReserveAmmo());
+        GameStateWidgetInstance->SetAmmoCounts(
+            AmmoInventory.GetMagazineAmmo(EquippedAmmoType),
+            AmmoInventory.GetReserveAmmo(EquippedAmmoType));
     }
 }
 

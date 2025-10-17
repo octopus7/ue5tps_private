@@ -10,6 +10,7 @@ AAmmoPickup::AAmmoPickup()
 
     CollisionRadius = 50.f;
     AmmoAmount = 30;
+    AmmoType = EAmmoType::Rifle;
     bDestroyOnEmpty = true;
 
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
@@ -66,5 +67,5 @@ int32 AAmmoPickup::TransferAmmoToActor(AActor* TargetActor)
         return 0;
     }
 
-    return IAmmoConsumerInterface::Execute_AddAmmoToInventory(TargetActor, AmmoAmount);
+    return IAmmoConsumerInterface::Execute_AddAmmoToInventory(TargetActor, AmmoType, AmmoAmount);
 }

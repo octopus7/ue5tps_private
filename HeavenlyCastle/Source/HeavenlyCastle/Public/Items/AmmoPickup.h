@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Weapon/AmmoTypes.h"
 #include "GameFramework/Actor.h"
 #include "AmmoPickup.generated.h"
 
@@ -36,6 +37,10 @@ protected:
     /** Current rounds stored in this pickup. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup", meta = (ClampMin = "0"))
     int32 AmmoAmount;
+
+    /** Ammo type supplied by this pickup. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup")
+    EAmmoType AmmoType;
 
     /** Radius used for overlap detection. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pickup", meta = (ClampMin = "0.0"))

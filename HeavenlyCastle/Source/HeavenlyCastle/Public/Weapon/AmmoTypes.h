@@ -3,10 +3,20 @@
 #include "CoreMinimal.h"
 #include "AmmoTypes.generated.h"
 
+UENUM(BlueprintType)
+enum class EAmmoType : uint8
+{
+    Rifle   UMETA(DisplayName = "Rifle"),
+    Pistol  UMETA(DisplayName = "Pistol")
+};
+
 USTRUCT(BlueprintType)
-struct FAmmoConfig
+struct FAmmoTypeConfig
 {
     GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon|Ammo")
+    EAmmoType AmmoType = EAmmoType::Rifle;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
     int32 MagazineCapacity = 30;
@@ -24,10 +34,10 @@ struct FAmmoConfig
     bool bInfiniteAmmo = false;
 };
 
-class FAmmoState
+class FAmmoTypeState
 {
 public:
-    void Initialize(const FAmmoConfig& InConfig);
+    void Initialize(const FAmmoTypeConfig& InConfig);
 
     bool CanFire() const;
 
@@ -39,6 +49,8 @@ public:
 
     int32 GetAvailableReserveSpace() const;
 
+    EAmmoType GetAmmoType() const { return Config.AmmoType; }
+
     int32 GetMagazineAmmo() const { return CurrentMagazineAmmo; }
 
     int32 GetReserveAmmo() const { return CurrentReserveAmmo; }
@@ -49,10 +61,45 @@ public:
 
     bool HasInfiniteAmmo() const { return Config.bInfiniteAmmo; }
 
-    const FAmmoConfig& GetConfig() const { return Config; }
+    const FAmmoTypeConfig& GetConfig() const { return Config; }
 
 private:
-    FAmmoConfig Config;
+    FAmmoTypeConfig Config;
     int32 CurrentMagazineAmmo = 0;
     int32 CurrentReserveAmmo = 0;
+};
+
+class FAmmoInventory
+{
+public:
+    void Initialize(const TArray<FAmmoTypeConfig>& InConfigs);
+
+    bool HasType(EAmmoType AmmoType) const;
+
+    FAmmoTypeState* FindAmmoState(EAmmoType AmmoType);
+
+    const FAmmoTypeState* FindAmmoState(EAmmoType AmmoType) const;
+
+    bool CanFire(EAmmoType AmmoType) const;
+
+    bool ConsumeRound(EAmmoType AmmoType);
+
+    bool Reload(EAmmoType AmmoType);
+
+    int32 AddReserveAmmo(EAmmoType AmmoType, int32 Amount);
+
+    int32 GetAvailableReserveSpace(EAmmoType AmmoType) const;
+
+    int32 GetMagazineAmmo(EAmmoType AmmoType) const;
+
+    int32 GetReserveAmmo(EAmmoType AmmoType) const;
+
+    int32 GetMagazineCapacity(EAmmoType AmmoType) const;
+
+    int32 GetMaxReserveAmmo(EAmmoType AmmoType) const;
+
+    bool HasInfiniteAmmo(EAmmoType AmmoType) const;
+
+private:
+    TMap<EAmmoType, FAmmoTypeState> AmmoStates;
 };

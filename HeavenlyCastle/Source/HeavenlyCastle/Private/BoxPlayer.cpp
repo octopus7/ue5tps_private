@@ -81,13 +81,26 @@ ABoxPlayer::ABoxPlayer()
     StatusWidgetComponent->SetDrawSize(FVector2D(200.f, 50.f));
     StatusWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
     StatusWidgetComponent->SetWidgetClass(UBoxPlayerStatusWidget::StaticClass());
+
+    if (AmmoTypeConfigs.Num() == 0)
+    {
+        FAmmoTypeConfig DefaultConfig;
+        DefaultConfig.AmmoType = EAmmoType::Rifle;
+        AmmoTypeConfigs.Add(DefaultConfig);
+    }
 }
 
 void ABoxPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
-    AmmoState.Initialize(AmmoConfig);
+    AmmoInventory.Initialize(AmmoTypeConfigs);
+    if (!AmmoInventory.HasType(EquippedAmmoType))
+    {
+        const UEnum* AmmoEnum = StaticEnum<EAmmoType>();
+        const FString AmmoName = AmmoEnum ? AmmoEnum->GetNameStringByValue(static_cast<int64>(EquippedAmmoType)) : TEXT("Unknown");
+        UE_LOG(LogTemp, Warning, TEXT("BoxPlayer: Missing ammo config for %s ammo; counts will remain at zero."), *AmmoName);
+    }
     UpdateAmmoUI();
 
     if (CameraBoom)
@@ -356,7 +369,7 @@ void ABoxPlayer::StartFire()
         }
     }
 
-    if (!AmmoState.CanFire())
+    if (!AmmoInventory.CanFire(EquippedAmmoType))
     {
         HandleOutOfAmmo();
         return;
@@ -364,7 +377,7 @@ void ABoxPlayer::StartFire()
 
     Fire();
 
-    if (TimeBetweenShots > 0.f && AmmoState.CanFire())
+    if (TimeBetweenShots > 0.f && AmmoInventory.CanFire(EquippedAmmoType))
     {
         GetWorldTimerManager().SetTimer(AutomaticFireHandle, this, &ABoxPlayer::Fire, TimeBetweenShots, true);
     }
@@ -377,7 +390,7 @@ void ABoxPlayer::StopFire()
 
 void ABoxPlayer::ReloadWeapon()
 {
-    if (!AmmoState.Reload())
+    if (!AmmoInventory.Reload(EquippedAmmoType))
     {
         return;
     }
@@ -386,10 +399,10 @@ void ABoxPlayer::ReloadWeapon()
     UpdateAmmoUI();
 }
 
-int32 ABoxPlayer::AddAmmoToInventory_Implementation(int32 Amount)
+int32 ABoxPlayer::AddAmmoToInventory_Implementation(EAmmoType AmmoType, int32 Amount)
 {
-    const int32 Used = AmmoState.AddReserveAmmo(Amount);
-    if (Used > 0)
+    const int32 Used = AmmoInventory.AddReserveAmmo(AmmoType, Amount);
+    if (Used > 0 && AmmoType == EquippedAmmoType)
     {
         UpdateAmmoUI();
     }
@@ -404,7 +417,7 @@ void ABoxPlayer::Fire()
         return;
     }
 
-    if (!AmmoState.CanFire())
+    if (!AmmoInventory.CanFire(EquippedAmmoType))
     {
         HandleOutOfAmmo();
         return;
@@ -478,7 +491,7 @@ void ABoxPlayer::Fire()
 
 bool ABoxPlayer::ConsumeAmmo()
 {
-    const bool bHasAmmoRemaining = AmmoState.ConsumeRound();
+    const bool bHasAmmoRemaining = AmmoInventory.ConsumeRound(EquippedAmmoType);
     UpdateAmmoUI();
     return bHasAmmoRemaining;
 }
@@ -493,7 +506,9 @@ void ABoxPlayer::UpdateAmmoUI()
 {
     if (GameStateWidgetInstance)
     {
-        GameStateWidgetInstance->SetAmmoCounts(AmmoState.GetMagazineAmmo(), AmmoState.GetReserveAmmo());
+        GameStateWidgetInstance->SetAmmoCounts(
+            AmmoInventory.GetMagazineAmmo(EquippedAmmoType),
+            AmmoInventory.GetReserveAmmo(EquippedAmmoType));
     }
 }
 

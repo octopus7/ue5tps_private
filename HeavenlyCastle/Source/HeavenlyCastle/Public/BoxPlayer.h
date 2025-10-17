@@ -148,9 +148,13 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Weapon")
     FName WeaponSocketName;
 
-    /** Ammo configuration shared with TPS player */
+    /** Ammo configurations shared with TPS player */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
-    FAmmoConfig AmmoConfig;
+    TArray<FAmmoTypeConfig> AmmoTypeConfigs;
+
+    /** Ammo type consumed by the current weapon (defaults to rifle). */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
+    EAmmoType EquippedAmmoType = EAmmoType::Rifle;
 
     /** ?ㅽ룿??臾닿린 李몄“ */
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
@@ -182,7 +186,7 @@ protected:
     /** Reload input handler */
     void ReloadWeapon();
 
-    virtual int32 AddAmmoToInventory_Implementation(int32 Amount) override;
+    virtual int32 AddAmmoToInventory_Implementation(EAmmoType AmmoType, int32 Amount) override;
 
     /** ?ㅼ젣 諛쒖궗 */
     void Fire();
@@ -231,7 +235,7 @@ private:
     FVector CoverCameraOffset;
 
     /** Shared ammo runtime state */
-    FAmmoState AmmoState;
+    FAmmoInventory AmmoInventory;
 
     void UpdateAmmoUI();
     void HandleOutOfAmmo();
