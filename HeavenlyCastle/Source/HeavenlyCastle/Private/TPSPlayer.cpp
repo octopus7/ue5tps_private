@@ -115,6 +115,8 @@ ATPSPlayer::ATPSPlayer()
     // Throwable defaults
     HeldGrenade = nullptr;
 
+    bIsDead = false;
+
     if (AmmoTypeConfigs.Num() == 0)
     {
         FAmmoTypeConfig DefaultConfig;
@@ -127,6 +129,8 @@ ATPSPlayer::ATPSPlayer()
 void ATPSPlayer::BeginPlay()
 {
     Super::BeginPlay();
+
+    bIsDead = false;
 
     AmmoInventory.Initialize(AmmoTypeConfigs);
     if (!AmmoInventory.HasType(EquippedAmmoType))
@@ -210,6 +214,7 @@ void ATPSPlayer::BeginPlay()
 	if (HealthComponent)
 	{
 		HealthComponent->OnHealthChanged.AddDynamic(this, &ATPSPlayer::OnHealthChanged);
+		UpdateHealthUI();
 	}
 	// Quick sanity hints for grenade setup
 	if (!GrenadeClass)
@@ -900,10 +905,17 @@ void ATPSPlayer::SprintStopped()
 
 void ATPSPlayer::OnHealthChanged(UHealthComponent* OwningHealthComp, float Health, float HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
 {
-    if (Health <= 0.0f && !bIsDead)
-    {
-        OnDeath();
-    }
+	UpdateHealthUI();
+
+	if (!FMath::IsNearlyZero(HealthDelta))
+	{
+		UE_LOG(LogTemp, Log, TEXT("TPSPlayer health changed: %.1f (delta %.1f)"), Health, HealthDelta);
+	}
+
+	if (Health <= 0.0f && !bIsDead)
+	{
+		OnDeath();
+	}
 }
 
 void ATPSPlayer::HandleOutOfAmmo()
@@ -944,6 +956,16 @@ void ATPSPlayer::UpdateCoverAvailability()
 
     const bool bAvailable = CoverController && CoverController->IsCoverAvailable();
     GameStateWidgetInstance->SetCoverAvailable(bAvailable);
+}
+
+void ATPSPlayer::UpdateHealthUI()
+{
+	if (!IsLocallyControlled() || !GameStateWidgetInstance || !HealthComponent)
+	{
+		return;
+	}
+
+	GameStateWidgetInstance->SetHealth(HealthComponent->GetHealth(), HealthComponent->GetMaxHealth());
 }
 
 void ATPSPlayer::ComputeThrowParams(FVector& OutStart, FVector& OutVelocity) const

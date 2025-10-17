@@ -9,12 +9,15 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Layout/Margin.h"
+#include "Math/UnrealMathUtility.h"
 
 UGameStateWidget::UGameStateWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
     , bIsCoverAvailable(false)
     , CachedMagazineAmmo(0)
     , CachedReserveAmmo(0)
+    , CachedHealth(0.f)
+    , CachedMaxHealth(0.f)
 {
 }
 
@@ -43,6 +46,16 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
         if (UVerticalBoxSlot* CoverSlot = Container->AddChildToVerticalBox(CoverStatusText))
         {
             CoverSlot->SetHorizontalAlignment(HAlign_Center);
+        }
+    }
+
+    HealthText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HealthText"));
+    InitializeHealthText(HealthText);
+    if (Container && HealthText)
+    {
+        if (UVerticalBoxSlot* HealthSlot = Container->AddChildToVerticalBox(HealthText))
+        {
+            HealthSlot->SetHorizontalAlignment(HAlign_Center);
         }
     }
 
@@ -85,6 +98,7 @@ TSharedRef<SWidget> UGameStateWidget::RebuildWidget()
 
     RefreshText();
     RefreshAmmoTexts();
+    RefreshHealthText();
 
     return WidgetTree->RootWidget->TakeWidget();
 }
@@ -115,6 +129,21 @@ void UGameStateWidget::InitializeAmmoText(UTextBlock* InText, bool bIsMagazine)
     InText->SetText(FText::GetEmpty());
     InText->SetJustification(bIsMagazine ? ETextJustify::Center : ETextJustify::Left);
     InText->SetAutoWrapText(false);
+    InText->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+void UGameStateWidget::InitializeHealthText(UTextBlock* InText)
+{
+    if (!InText)
+    {
+        return;
+    }
+
+    FSlateFontInfo FontInfo = InText->Font;
+    FontInfo.Size = 36;
+    InText->SetFont(FontInfo);
+    InText->SetText(FText::GetEmpty());
+    InText->SetJustification(ETextJustify::Center);
     InText->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
@@ -163,6 +192,21 @@ void UGameStateWidget::SetAmmoCounts(int32 MagazineAmmo, int32 ReserveAmmo)
     RefreshAmmoTexts();
 }
 
+void UGameStateWidget::SetHealth(float CurrentHealth, float MaxHealth)
+{
+    const float ClampedMax = FMath::Max(0.0f, MaxHealth);
+    const float ClampedCurrent = ClampedMax > 0.0f ? FMath::Clamp(CurrentHealth, 0.0f, ClampedMax) : FMath::Max(0.0f, CurrentHealth);
+
+    if (FMath::IsNearlyEqual(CachedHealth, ClampedCurrent) && FMath::IsNearlyEqual(CachedMaxHealth, ClampedMax))
+    {
+        return;
+    }
+
+    CachedHealth = ClampedCurrent;
+    CachedMaxHealth = ClampedMax;
+    RefreshHealthText();
+}
+
 void UGameStateWidget::RefreshAmmoTexts()
 {
     if (MagazineText)
@@ -175,4 +219,23 @@ void UGameStateWidget::RefreshAmmoTexts()
         const FString ReserveString = FString::Printf(TEXT("/ %d"), CachedReserveAmmo);
         ReserveText->SetText(FText::FromString(ReserveString));
     }
+}
+
+void UGameStateWidget::RefreshHealthText()
+{
+    if (!HealthText)
+    {
+        return;
+    }
+
+    if (CachedMaxHealth <= 0.0f)
+    {
+        HealthText->SetText(FText::FromString(TEXT("HP: --")));
+        return;
+    }
+
+    const int32 DisplayCurrent = FMath::RoundToInt(CachedHealth);
+    const int32 DisplayMax = FMath::RoundToInt(CachedMaxHealth);
+    const FString HealthString = FString::Printf(TEXT("HP: %d / %d"), DisplayCurrent, DisplayMax);
+    HealthText->SetText(FText::FromString(HealthString));
 }

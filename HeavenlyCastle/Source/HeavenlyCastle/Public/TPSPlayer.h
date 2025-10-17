@@ -318,6 +318,7 @@ private:
     bool ConsumeAmmo();
     void UpdateAmmoUI();
     void UpdateCoverAvailability();
+    void UpdateHealthUI();
 
 private:
     bool bIsDead;

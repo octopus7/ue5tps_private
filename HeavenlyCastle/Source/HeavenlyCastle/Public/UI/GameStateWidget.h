@@ -19,6 +19,7 @@ public:
 
     void SetCoverAvailable(bool bAvailable);
     void SetAmmoCounts(int32 MagazineAmmo, int32 ReserveAmmo);
+    void SetHealth(float CurrentHealth, float MaxHealth);
 
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -33,12 +34,19 @@ private:
     UPROPERTY()
     TObjectPtr<UTextBlock> ReserveText;
 
+    UPROPERTY()
+    TObjectPtr<UTextBlock> HealthText;
+
     bool bIsCoverAvailable;
     int32 CachedMagazineAmmo;
     int32 CachedReserveAmmo;
+    float CachedHealth;
+    float CachedMaxHealth;
 
     void InitializeCoverText(UTextBlock* InText);
     void InitializeAmmoText(UTextBlock* InText, bool bIsMagazine);
+    void InitializeHealthText(UTextBlock* InText);
     void RefreshText();
     void RefreshAmmoTexts();
+    void RefreshHealthText();
 };
