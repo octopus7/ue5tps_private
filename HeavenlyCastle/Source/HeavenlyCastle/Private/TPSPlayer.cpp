@@ -18,6 +18,8 @@
 #include "ThrowableGrenade.h"
 #include "Cover/Runtime/CoverControllerComponent.h"
 #include "Cover/Runtime/CoverCameraComponent.h"
+#include "UI/GameStateWidget.h"
+#include "Blueprint/UserWidget.h"
 
 // Sets default values
 ATPSPlayer::ATPSPlayer()
@@ -118,9 +120,23 @@ void ATPSPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
-    MaxAmmo = FMath::Max(0, MaxAmmo);
-    const int32 ClampedStart = FMath::Max(0, StartingAmmo);
-    CurrentAmmo = bInfiniteAmmo ? MaxAmmo : FMath::Clamp(ClampedStart, 0, MaxAmmo);
+    MagazineCapacity = FMath::Max(0, MagazineCapacity);
+    MaxReserveAmmo = FMath::Max(0, MaxReserveAmmo);
+    StartingMagazineAmmo = FMath::Clamp(StartingMagazineAmmo, 0, MagazineCapacity);
+    StartingReserveAmmo = FMath::Clamp(StartingReserveAmmo, 0, MaxReserveAmmo);
+
+    if (bInfiniteAmmo)
+    {
+        CurrentMagazineAmmo = MagazineCapacity;
+        CurrentReserveAmmo = MaxReserveAmmo;
+    }
+    else
+    {
+        CurrentMagazineAmmo = StartingMagazineAmmo;
+        CurrentReserveAmmo = StartingReserveAmmo;
+    }
+
+    UpdateAmmoUI();
 
 	// Set initial camera boom properties
 	CameraBoom->TargetArmLength = DefaultCameraArmLength;
@@ -133,6 +149,20 @@ void ATPSPlayer::BeginPlay()
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
+
+        if (IsLocallyControlled() && !GameStateWidgetInstance)
+        {
+            GameStateWidgetInstance = CreateWidget<UGameStateWidget>(PlayerController, UGameStateWidget::StaticClass());
+            if (GameStateWidgetInstance)
+            {
+                GameStateWidgetInstance->AddToViewport();
+                UpdateAmmoUI();
+
+                constexpr float CoverUpdateInterval = 0.25f;
+                GetWorldTimerManager().SetTimer(GameStateWidgetUpdateHandle, this, &ATPSPlayer::UpdateCoverAvailability, CoverUpdateInterval, true, 0.0f);
+                UpdateCoverAvailability();
+            }
+        }
 	}
 
 	// Spawn and attach the weapon
@@ -317,6 +347,12 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 		//Firing
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ATPSPlayer::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ATPSPlayer::StopFire);
+
+        //Reload
+        if (ReloadAction)
+        {
+            EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Started, this, &ATPSPlayer::ReloadWeapon);
+        }
 
 
 		//Sprint
@@ -521,7 +557,7 @@ void ATPSPlayer::StartFire()
 		}
 	}
 
-    if (!bInfiniteAmmo && CurrentAmmo <= 0)
+    if (!bInfiniteAmmo && CurrentMagazineAmmo <= 0)
     {
         HandleOutOfAmmo();
         return;
@@ -589,6 +625,46 @@ void ATPSPlayer::StartThrow()
     ThrowGrenade();
 }
 
+void ATPSPlayer::ReloadWeapon()
+{
+    if (CombatState != ECombatState::Armed)
+    {
+        return;
+    }
+
+    if (bInfiniteAmmo)
+    {
+        CurrentMagazineAmmo = MagazineCapacity;
+        CurrentReserveAmmo = MaxReserveAmmo;
+        UpdateAmmoUI();
+        return;
+    }
+
+    if (CurrentMagazineAmmo >= MagazineCapacity || CurrentReserveAmmo <= 0)
+    {
+        return;
+    }
+
+    const int32 Needed = MagazineCapacity - CurrentMagazineAmmo;
+    const int32 AmmoToLoad = FMath::Min(Needed, CurrentReserveAmmo);
+    if (AmmoToLoad <= 0)
+    {
+        return;
+    }
+
+    GetWorldTimerManager().ClearTimer(TimerHandle_AutomaticFire);
+    if (bIsFiring)
+    {
+        bIsFiring = false;
+        UpdateRotationSettings();
+    }
+
+    CurrentMagazineAmmo += AmmoToLoad;
+    CurrentReserveAmmo -= AmmoToLoad;
+
+    UpdateAmmoUI();
+}
+
 void ATPSPlayer::HandleCoverAction()
 {
     if (!CoverController)
@@ -644,6 +720,7 @@ bool ATPSPlayer::IsInCover() const
 void ATPSPlayer::OnCoverStateChanged(ESimpleCoverState NewState)
 {
     UpdateRotationSettings();
+    UpdateCoverAvailability();
 }
 
 void ATPSPlayer::OnCoverCameraOffsetUpdated(FVector Offset)
@@ -680,7 +757,7 @@ void ATPSPlayer::Fire()
 		return;
 	}
 
-	if (!bInfiniteAmmo && CurrentAmmo <= 0)
+	if (!bInfiniteAmmo && CurrentMagazineAmmo <= 0)
 	{
 		HandleOutOfAmmo();
 		return;
@@ -846,22 +923,50 @@ void ATPSPlayer::HandleOutOfAmmo()
         bIsFiring = false;
         UpdateRotationSettings();
     }
+
+    UpdateAmmoUI();
 }
 
 bool ATPSPlayer::ConsumeAmmo()
 {
     if (bInfiniteAmmo)
     {
+        if (CurrentMagazineAmmo < MagazineCapacity)
+        {
+            CurrentMagazineAmmo = MagazineCapacity;
+        }
+        UpdateAmmoUI();
         return true;
     }
 
-    if (CurrentAmmo <= 0)
+    if (CurrentMagazineAmmo <= 0)
     {
+        UpdateAmmoUI();
         return false;
     }
 
-    --CurrentAmmo;
-    return CurrentAmmo > 0;
+    --CurrentMagazineAmmo;
+    UpdateAmmoUI();
+    return CurrentMagazineAmmo > 0;
+}
+
+void ATPSPlayer::UpdateAmmoUI()
+{
+    if (GameStateWidgetInstance)
+    {
+        GameStateWidgetInstance->SetAmmoCounts(CurrentMagazineAmmo, CurrentReserveAmmo);
+    }
+}
+
+void ATPSPlayer::UpdateCoverAvailability()
+{
+    if (!IsLocallyControlled() || !GameStateWidgetInstance)
+    {
+        return;
+    }
+
+    const bool bAvailable = CoverController && CoverController->IsCoverAvailable();
+    GameStateWidgetInstance->SetCoverAvailable(bAvailable);
 }
 
 void ATPSPlayer::ComputeThrowParams(FVector& OutStart, FVector& OutVelocity) const
@@ -881,6 +986,19 @@ void ATPSPlayer::ComputeThrowParams(FVector& OutStart, FVector& OutVelocity) con
 
     OutStart = Start;
     OutVelocity = Forward * ThrowSpeed;
+}
+
+void ATPSPlayer::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(GameStateWidgetUpdateHandle);
+
+    if (GameStateWidgetInstance)
+    {
+        GameStateWidgetInstance->RemoveFromParent();
+        GameStateWidgetInstance = nullptr;
+    }
+
+    Super::EndPlay(EndPlayReason);
 }
 
 void ATPSPlayer::OnDeath()

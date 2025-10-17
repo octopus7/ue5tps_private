@@ -13,6 +13,7 @@ class UAnimMontage;
 class AThrowableGrenade;
 class UCoverControllerComponent;
 class UCoverCameraComponent;
+class UGameStateWidget;
 
 UENUM(BlueprintType)
 enum class ECombatState : uint8
@@ -118,6 +119,10 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* FireAction;
 
+    /** Reload Input Action */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputAction* ReloadAction;
+
     /** Toggle Thrown-Ready Input Action (optional) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     UInputAction* ThrowReadyAction;
@@ -161,6 +166,9 @@ protected:
 
     /** Called for throw input */
     void StartThrow();
+
+    /** Called for reload input */
+    void ReloadWeapon();
 
     /** Called when cover input is triggered */
     void HandleCoverAction();
@@ -258,13 +266,21 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon")
 	AActor* SpawnedWeapon;
 
-    /** Maximum rounds per magazine */
+    /** Maximum rounds that fit in the magazine */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 MaxAmmo = 30;
+    int32 MagazineCapacity = 30;
 
-    /** Initial rounds loaded when the game starts */
+    /** Magazine rounds available on spawn */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
-    int32 StartingAmmo = 30;
+    int32 StartingMagazineAmmo = 30;
+
+    /** Maximum spare rounds the player can carry */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
+    int32 MaxReserveAmmo = 60;
+
+    /** Spare rounds carried on spawn */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo", meta = (ClampMin = "0"))
+    int32 StartingReserveAmmo = 60;
 
     /** When true, ammo is not consumed while firing (debug/testing) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammo")
@@ -272,7 +288,11 @@ protected:
 
     /** Current rounds available for firing */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
-    int32 CurrentAmmo = 0;
+    int32 CurrentMagazineAmmo = 0;
+
+    /** Current spare rounds carried */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
+    int32 CurrentReserveAmmo = 0;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;
@@ -307,6 +327,8 @@ private:
 
     void HandleOutOfAmmo();
     bool ConsumeAmmo();
+    void UpdateAmmoUI();
+    void UpdateCoverAvailability();
 
 private:
     bool bIsDead;
@@ -413,4 +435,13 @@ private:
 
     UFUNCTION()
     void OnCoverCameraOffsetUpdated(FVector Offset);
+
+protected:
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
+    UPROPERTY()
+    TObjectPtr<UGameStateWidget> GameStateWidgetInstance;
+
+    FTimerHandle GameStateWidgetUpdateHandle;
 };

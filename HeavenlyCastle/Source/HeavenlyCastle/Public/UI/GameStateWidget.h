@@ -18,6 +18,7 @@ public:
     UGameStateWidget(const FObjectInitializer& ObjectInitializer);
 
     void SetCoverAvailable(bool bAvailable);
+    void SetAmmoCounts(int32 MagazineAmmo, int32 ReserveAmmo);
 
 protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -26,8 +27,18 @@ private:
     UPROPERTY()
     TObjectPtr<UTextBlock> CoverStatusText;
 
-    bool bIsCoverAvailable;
+    UPROPERTY()
+    TObjectPtr<UTextBlock> MagazineText;
 
-    void InitializeText(UTextBlock* InText);
+    UPROPERTY()
+    TObjectPtr<UTextBlock> ReserveText;
+
+    bool bIsCoverAvailable;
+    int32 CachedMagazineAmmo;
+    int32 CachedReserveAmmo;
+
+    void InitializeCoverText(UTextBlock* InText);
+    void InitializeAmmoText(UTextBlock* InText, bool bIsMagazine);
     void RefreshText();
+    void RefreshAmmoTexts();
 };
