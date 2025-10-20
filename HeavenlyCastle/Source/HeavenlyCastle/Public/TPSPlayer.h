@@ -5,7 +5,6 @@
 #include "Cover/CoverTypes.h"
 #include "Weapon/AmmoTypes.h"
 #include "Weapon/AmmoConsumerInterface.h"
-#include "Camera/CameraTuningInterface.h"
 #include "TPSPlayer.generated.h"
 
 class UHealthComponent;
@@ -29,7 +28,7 @@ enum class ECombatState : uint8
 };
 
 UCLASS()
-class HEAVENLYCASTLE_API ATPSPlayer : public ACharacter, public IAmmoConsumerInterface, public ICameraTuningInterface
+class HEAVENLYCASTLE_API ATPSPlayer : public ACharacter, public IAmmoConsumerInterface
 {
     GENERATED_BODY()
 
@@ -48,9 +47,6 @@ public:
 	// Called to bind functionality to input
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
     virtual void Jump() override;
-    virtual FPlayerCameraTuningData GetCameraTuningData_Implementation() const override;
-    virtual void ApplyCameraTuningData_Implementation(const FPlayerCameraTuningData& NewData) override;
-    virtual void RefreshCameraFromTuning_Implementation() override;
 
 protected:
 	/** Camera boom positioning the camera behind the character */

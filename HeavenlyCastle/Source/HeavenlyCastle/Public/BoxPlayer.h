@@ -5,7 +5,6 @@
 #include "Cover/CoverTypes.h"
 #include "Weapon/AmmoTypes.h"
 #include "Weapon/AmmoConsumerInterface.h"
-#include "Camera/CameraTuningInterface.h"
 #include "BoxPlayer.generated.h"
 
 class UInputMappingContext;
@@ -24,7 +23,7 @@ class UGameStateWidget;
  * 湲곕낯 TPS ?뚮젅?댁뼱??移대찓???대룞/?먰봽留뚯쓣 ?ъ슜???붾? 諛뺤뒪 ?뚮젅?댁뼱
  */
 UCLASS()
-class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter, public IAmmoConsumerInterface, public ICameraTuningInterface
+class HEAVENLYCASTLE_API ABoxPlayer : public ACharacter, public IAmmoConsumerInterface
 {
     GENERATED_BODY()
 
@@ -39,9 +38,6 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual void Jump() override;
-    virtual FPlayerCameraTuningData GetCameraTuningData_Implementation() const override;
-    virtual void ApplyCameraTuningData_Implementation(const FPlayerCameraTuningData& NewData) override;
-    virtual void RefreshCameraFromTuning_Implementation() override;
 
 protected:
     /** 移대찓??遺? ?뚮젅?댁뼱 ?ㅼ뿉??移대찓?쇰? 諛곗튂 */

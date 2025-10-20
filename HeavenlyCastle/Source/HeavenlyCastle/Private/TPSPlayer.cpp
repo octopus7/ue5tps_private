@@ -20,7 +20,6 @@
 #include "Cover/Runtime/CoverCameraComponent.h"
 #include "UI/GameStateWidget.h"
 #include "Blueprint/UserWidget.h"
-#include "Camera/PlayerCameraTuningTypes.h"
 
 // Sets default values
 ATPSPlayer::ATPSPlayer()
@@ -1393,84 +1392,5 @@ void ATPSPlayer::ThrowGrenade()
     UE_LOG(LogTemp, Log, TEXT("ThrowGrenade(): State -> Unarmed"));
 }
 
-FPlayerCameraTuningData ATPSPlayer::GetCameraTuningData_Implementation() const
-{
-    FPlayerCameraTuningData Data;
-    Data.CameraInterpSpeed = CameraInterpSpeed;
-
-    auto MakeState = [](const FName& Name, float ArmLength, const FVector& Offset) -> FPlayerCameraStateTuning
-    {
-        FPlayerCameraStateTuning State;
-        State.StateName = Name;
-        State.TargetArmLength = ArmLength;
-        State.SocketOffset = Offset;
-        State.bEnabled = true;
-        return State;
-    };
-
-    Data.States.Add(MakeState(TEXT("Default"), DefaultCameraArmLength, DefaultCameraSocketOffset));
-    Data.States.Add(MakeState(TEXT("Aiming"), AimingCameraArmLength, AimingCameraSocketOffset));
-    Data.States.Add(MakeState(TEXT("Sprint"), SprintCameraArmLength, SprintCameraSocketOffset));
-
-    return Data;
-}
-
-void ATPSPlayer::ApplyCameraTuningData_Implementation(const FPlayerCameraTuningData& NewData)
-{
-    CameraInterpSpeed = NewData.CameraInterpSpeed;
-
-    for (const FPlayerCameraStateTuning& State : NewData.States)
-    {
-        if (!State.bEnabled)
-        {
-            continue;
-        }
-
-        if (State.StateName == TEXT("Default"))
-        {
-            DefaultCameraArmLength = State.TargetArmLength;
-            DefaultCameraSocketOffset = State.SocketOffset;
-        }
-        else if (State.StateName == TEXT("Aiming"))
-        {
-            AimingCameraArmLength = State.TargetArmLength;
-            AimingCameraSocketOffset = State.SocketOffset;
-        }
-        else if (State.StateName == TEXT("Sprint"))
-        {
-            SprintCameraArmLength = State.TargetArmLength;
-            SprintCameraSocketOffset = State.SocketOffset;
-        }
-    }
-
-    RefreshCameraFromTuning();
-}
-
-void ATPSPlayer::RefreshCameraFromTuning_Implementation()
-{
-    if (!CameraBoom)
-    {
-        return;
-    }
-
-    float TargetArmLength = DefaultCameraArmLength;
-    FVector TargetSocketOffset = DefaultCameraSocketOffset;
-
-    if (bIsSprinting)
-    {
-        TargetArmLength = SprintCameraArmLength;
-        TargetSocketOffset = SprintCameraSocketOffset;
-    }
-    else if (bIsAiming)
-    {
-        TargetArmLength = AimingCameraArmLength;
-        TargetSocketOffset = AimingCameraSocketOffset;
-    }
-
-    TargetSocketOffset += CoverCameraOffset;
-
-    CameraBoom->TargetArmLength = TargetArmLength;
-    CameraBoom->SocketOffset = TargetSocketOffset;
-}
 
 
